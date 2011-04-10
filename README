@@ -9,7 +9,7 @@ It can split FLAC files fine, but not WAVE files.  Features I remember:
    - This caused a problem with Sigur Ros' album '( )' on FAT32 since it
      sanitizes to just ' '.  I have no better solution than hard-coding
      that case.
- - FLAC files always encoded with the --best.
+ - FLAC files always encoded with --best.
 
 Build dependencies: cmake, flex, yacc
 Runtime dependencies: boost, flac (with C++ bindings), icu, sox
