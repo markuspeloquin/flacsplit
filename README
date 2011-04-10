@@ -1,0 +1,15 @@
+It can split FLAC files fine, but not WAVE files.  Features I remember:
+ - Add a 'REM OFFSET <N>' line to a cuesheet to add <N> to all track
+   numbers for file naming and tagging purposes.  For multi-disc albums.
+ - Cuesheets can be UTF-8 or ISO8859-1.
+ - Pathnames are sanitized to alphanumeric characters and spaces only.
+   Accents are stripped for vowels, [Çç], [Ññ].  ß, [Ðð], [Þþ], [Ææ],
+   [Œœ], are translated to ss, Dh/dh, Th/th, Ae/ae, Oe/oe.  All other
+   characters stripped.
+   - This caused a problem with Sigur Ros' album '( )' on FAT32 since it
+     sanitizes to just ' '.  I have no better solution than hard-coding
+     that case.
+ - FLAC files always encoded with the --best.
+
+Build dependencies: cmake, flex, yacc
+Runtime dependencies: boost, flac (with C++ bindings), icu, sox
