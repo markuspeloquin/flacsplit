@@ -83,6 +83,8 @@ private:
 	uint8_t			_track;
 };
 
+std::string	iso8859_to_utf8(const std::string &);
+
 }
 
 #endif

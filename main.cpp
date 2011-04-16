@@ -40,12 +40,12 @@ FILE		*find_file(const std::string &, std::string &);
 std::string	frametime(uint32_t);
 void		get_cue_extra(const std::string &, std::string &out_genre,
 		    std::string &out_date) throw (flacsplit::Unix_error);
-bool		make_album_path(const flacsplit::Music_info &album,
+void		make_album_path(const flacsplit::Music_info &album,
 		    std::vector<std::string> &, std::string &);
-bool		make_track_name(const flacsplit::Music_info &track,
+void		make_track_name(const flacsplit::Music_info &track,
 		    std::string &);
 bool		once(const std::string &, const std::string *);
-bool		sanitize(const std::string &, std::string &);
+void		sanitize(const std::string &, std::string &);
 void		split_path(const std::string &, std::string &, std::string &);
 void		usage(const boost::program_options::options_description &);
 
@@ -273,12 +273,12 @@ get_cue_extra(const std::string &path,
 		}
 	}
 
-	out_genre = escape_cue_string(genre);
-	out_date = escape_cue_string(date);
+	out_genre = flacsplit::iso8859_to_utf8(escape_cue_string(genre));
+	out_date = flacsplit::iso8859_to_utf8(escape_cue_string(date));
 	out_offset = offset;
 }
 
-bool
+void
 make_album_path(const flacsplit::Music_info &album,
     std::vector<std::string> &out_path_vec, std::string &out_path)
 {
@@ -289,34 +289,30 @@ make_album_path(const flacsplit::Music_info &album,
 	if (path_vec.back().empty())
 		path_vec.back() = "no album";
 
-	if (!sanitize(path_vec[0], path_vec[0])) return false;
-	if (!sanitize(path_vec[1], path_vec[1])) return false;
+	sanitize(path_vec[0], path_vec[0]);
+	sanitize(path_vec[1], path_vec[1]);
 
 	std::ostringstream pathout;
 	pathout << path_vec[0] << '/' << path_vec[1];
 
 	std::swap(path_vec, out_path_vec);
 	out_path = pathout.str();
-
-	return true;
 }
 
-bool
+void
 make_track_name(const flacsplit::Music_info &track, std::string &name)
 {
 	std::string title;
-	if (!sanitize(track.title(), title)) return false;
+	sanitize(track.title(), title);
 
 	std::ostringstream nameout;
 	nameout << std::setfill('0') << std::setw(2)
 	    << static_cast<int>(track.track())
 	    << ' ' << title;
 	name = nameout.str();
-
-	return true;
 }
 
-bool
+void
 sanitize(const std::string &str, std::string &out)
 {
 	std::vector<size_t>	guessed;
@@ -324,34 +320,18 @@ sanitize(const std::string &str, std::string &out)
 	const char	*s = str.c_str();
 	int32_t		length = str.size();
 	int32_t		i = 0;
-	bool		utf8 = false;
-	bool		iso8859_1 = false;
 
 	// Sigur Ros exception
 	if (str == "( )") {
 		out = "Untitled";
-		return true;
+		return;
 	}
 
 	while (i < length) {
 		int32_t	c;
-		// if don't yet know encoding
-		if (!(utf8 || iso8859_1)){
-			U8_NEXT(s, i, length, c);
-			if (c < 0) {
-				iso8859_1 = true;
-				c = static_cast<unsigned char>(str[i-1]);
-			} else if (c > 0x7f)
-				utf8 = true;
-		// if is utf8
-		} else if (utf8) {
-			U8_NEXT(s, i, length, c);
-			if (c < 0)
-				// bad string
-				return false;
-		// if is iso8859-1
-		} else
-			c = static_cast<unsigned char>(str[i++]);
+		U8_NEXT(s, i, length, c);
+		// strings should be pre-encoded in utf8
+		assert(c > 0);
 
 		if ((0x30 <= c && c < 0x3a) ||
 		    (0x40 <= c && c < 0x5b) ||
@@ -406,7 +386,6 @@ sanitize(const std::string &str, std::string &out)
 			res[*i] = toupper(res[*i]);
 
 	std::swap(out, res);
-	return true;
 }
 
 void
@@ -501,11 +480,7 @@ once(const std::string &cue_path, const std::string *out_dir)
 
 	std::vector<std::string> dir_components;
 	std::string dir_path;
-	if (!make_album_path(album_info, dir_components, dir_path)) {
-		std::cerr << prog << ": encountered string neither UTF-8 nor "
-		    "ISO8859-1\n";
-		return false;
-	}
+	make_album_path(album_info, dir_components, dir_path);
 	create_dirs(dir_components.begin(), dir_components.end(), out_dir);
 
 	// construct base of output pathnames
@@ -563,11 +538,7 @@ once(const std::string &cue_path, const std::string *out_dir)
 		}
 
 		std::string out_name;
-		if (!make_track_name(*track_info[i], out_name)) {
-			std::cerr << prog << ": encountered string neither "
-			    "UTF-8 nor ISO8859-1\n";
-			return false;
-		}
+		make_track_name(*track_info[i], out_name);
 		out_name = dir_path + out_name;
 		out_name += ".flac";
 
