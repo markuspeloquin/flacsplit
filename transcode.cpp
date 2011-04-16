@@ -42,7 +42,7 @@ flacsplit::Music_info::Music_info(const Cdtext *cdtext0,
 
 	const char *title = cdtext_get(PTI_TITLE, cdtext);
 	if (title) _title = iso8859_to_utf8(title);
-};
+}
 
 std::string
 flacsplit::iso8859_to_utf8(const std::string &str)
