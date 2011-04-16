@@ -70,8 +70,8 @@ flacsplit::iso8859_to_utf8(const std::string &str)
 	for (i = 0; i < length; i++) {
 		// encode single character
 		size_t len = 0;
-		// c must be unsigned
-		uint8_t c = str[i];
+		// c must be unsigned; conversion to unsigned always defined
+		uint32_t c = static_cast<uint8_t>(str[i]);
 		U8_APPEND_UNSAFE(buf, len, c);
 		buf[len] = '\0';
 		res += buf;
