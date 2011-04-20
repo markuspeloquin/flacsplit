@@ -8,6 +8,7 @@ OBJS = \
        encode.o \
        errors.o \
        main.o \
+       replaygain.o \
        transcode.o \
        libcuefile.a \
 #
@@ -41,7 +42,12 @@ main.o: main.cpp \
 	decode.hpp \
 	encode.hpp \
     	errors.hpp \
+	replaygain.hpp \
 	transcode.hpp
+
+replaygain.o: replaygain.cpp \
+	replaygain.hpp \
+	errors.hpp 
 
 transcode.o: transcode.cpp \
 	transcode.hpp

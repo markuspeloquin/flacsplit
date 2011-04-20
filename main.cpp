@@ -25,6 +25,7 @@
 #include "decode.hpp"
 #include "encode.hpp"
 #include "errors.hpp"
+#include "replaygain.hpp"
 #include "transcode.hpp"
 
 const char *prog;
@@ -501,6 +502,7 @@ once(const std::string &cue_path, const std::string *out_dir)
 	FILE *fp = 0;
 	boost::scoped_ptr<Decoder> decoder;
 	bool decoded_any = false; // useless init
+	std::vector<std::string> out_paths;
 
 	for (unsigned i = 0; i < tracks; i++) {
 		Track *track = cd_get_track(cd, i+1);
@@ -541,6 +543,7 @@ once(const std::string &cue_path, const std::string *out_dir)
 		make_track_name(*track_info[i], out_name);
 		out_name = dir_path + out_name;
 		out_name += ".flac";
+		out_paths.push_back(out_name);
 
 		std::cerr << "> " << out_name << '\n';
 
@@ -607,6 +610,8 @@ once(const std::string &cue_path, const std::string *out_dir)
 			return false;
 		}
 	}
+
+	add_replay_gain(out_paths);
 
 	return true;
 }
@@ -680,7 +685,7 @@ main(int argc, char **argv)
 			out_dir.reset(new std::string(opt.as<std::string>()));
 	}
 
-
+	std::cout << "> Calculating replay-gain values\n";
 	for (std::vector<std::string>::iterator i = cuefiles.begin();
 	    i != cuefiles.end(); ++i)
 		if (!once(*i, out_dir.get()))
