@@ -254,13 +254,13 @@ get_cue_extra(const std::string &path,
 
 		if (!line.compare(0, GENRE.size(), GENRE))
 			genre = line.substr(GENRE.size(),
-			    line.size() - GENRE.size() - 1);
+			    line.size() - GENRE.size());
 		else if (!line.compare(0, DATE.size(), DATE))
 			date = line.substr(DATE.size(),
-			    line.size() - DATE.size() - 1);
+			    line.size() - DATE.size());
 		else if (!line.compare(0, OFFSET.size(), OFFSET)) {
 			std::string soff = line.substr(OFFSET.size(),
-			    line.size() - OFFSET.size() - 1);
+			    line.size() - OFFSET.size());
 			soff = escape_cue_string(soff);
 
 			char *endptr;
