@@ -611,6 +611,7 @@ once(const std::string &cue_path, const std::string *out_dir)
 		}
 	}
 
+	std::cout << "> Calculating replay-gain values\n";
 	add_replay_gain(out_paths);
 
 	return true;
@@ -685,7 +686,6 @@ main(int argc, char **argv)
 			out_dir.reset(new std::string(opt.as<std::string>()));
 	}
 
-	std::cout << "> Calculating replay-gain values\n";
 	for (std::vector<std::string>::iterator i = cuefiles.begin();
 	    i != cuefiles.end(); ++i)
 		if (!once(*i, out_dir.get()))
