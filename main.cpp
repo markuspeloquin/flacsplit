@@ -335,8 +335,8 @@ sanitize(const std::string &str, std::string &out)
 		assert(c > 0);
 
 		if ((0x30 <= c && c < 0x3a) ||
-		    (0x40 <= c && c < 0x5b) ||
-		    (0x60 <= c && c < 0x7b) ||
+		    (0x41 <= c && c < 0x5b) ||
+		    (0x61 <= c && c < 0x7b) ||
 		    c == 0x20)
 			res += static_cast<char>(c);
 		else if (c == 0x09)			res += ' ';
