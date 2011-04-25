@@ -5,6 +5,7 @@
 
 #include <cerrno>
 #include <cstring>
+#include <iostream>
 
 #include <boost/scoped_array.hpp>
 #include <boost/shared_array.hpp>

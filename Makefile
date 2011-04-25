@@ -1,7 +1,7 @@
 CXXFLAGS += -Wall -W -g -O2
 CPPFLAGS += -Ilibcuefile/include
-LDFLAGS +=
-LIBS += -lFLAC++ -lboost_program_options -licuuc -lsox
+LDFLAGS += -L/usr/local/lib
+LIBS += -lFLAC -lFLAC++ -lboost_program_options-mt -licuuc -lsox
 
 OBJS = \
        decode.o \
