@@ -87,6 +87,8 @@ public:
 				}
 			} else if (fd != -1)
 				_count = new unsigned(1);
+			else
+				_count = 0;
 		} else if (fd != -1)
 			_count = new unsigned(1);
 
