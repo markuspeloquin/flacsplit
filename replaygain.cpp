@@ -202,10 +202,9 @@ flacsplit::add_replay_gain(const std::vector<std::string> &paths)
 		// return errno through the pipe
 		int e = errno;
 		if (write(pipewr, &e, sizeof(e)) <
-		    static_cast<int>(sizeof(e))) {
+		    static_cast<int>(sizeof(e)))
 			std::cerr << prog << ": exec `metaflac' failed: "
 			    << strerror(e) << '\n';
-		}
 		pipewr.close();
 		exit(0x7f);
 	}

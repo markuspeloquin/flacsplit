@@ -545,7 +545,7 @@ once(const std::string &cue_path, const std::string *out_dir)
 		out_name += ".flac";
 		out_paths.push_back(out_name);
 
-		std::cerr << "> " << out_name << '\n';
+		std::cout << "> " << out_name << '\n';
 
 		FILE *outfp;
 		if (!(outfp = fopen(out_name.c_str(), "wb"))) {

@@ -13,9 +13,49 @@
 
 namespace {
 
+const unsigned FRAMES_PER_SEC = 75;
+
 enum flacsplit::file_format
 		get_file_format(FILE *);
 bool		same_file(FILE *, FILE *) throw (flacsplit::Unix_error);
+
+class Sox_init {
+public:
+	Sox_init() : _valid(false) {}
+	~Sox_init()
+	{
+		if (_valid)
+			sox_quit();
+	}
+
+	static void init() throw (flacsplit::Sox_error)
+	{
+		if (!_instance._valid)
+			_instance.do_init();
+	}
+
+private:
+	Sox_init(const Sox_init &) {}
+	void operator=(const Sox_init &) {}
+
+	void do_init() throw (flacsplit::Sox_error)
+	{
+		_valid = true;
+		if (sox_init() != SOX_SUCCESS)
+			_valid = false;
+		//if (_valid && sox_format_init() != SOX_SUCCESS) {
+		//	sox_quit();
+		//	_valid = false;
+		//}
+
+		if (!_valid)
+			throw flacsplit::Sox_error("sox_init() error");
+	}
+
+	static Sox_init _instance;
+
+	bool _valid;
+};
 
 class Flac_decoder :
     public FLAC::Decoder::File,
@@ -106,6 +146,7 @@ public:
 
 	virtual void seek(uint64_t sample) throw (Wave_decode_error)
 	{
+		sample *= _fmt->signal.channels;
 		if (sox_seek(_fmt, sample, SOX_SEEK_SET) != SOX_SUCCESS)
 			throw Wave_decode_error("sox_seek() error");
 	}
@@ -129,6 +170,8 @@ private:
 	sox_format_t	*_fmt;
 	size_t		_samples_len;
 };
+
+Sox_init Sox_init::_instance;
 
 Flac_decoder::Flac_decoder(FILE *fp) throw (Flac_decode_error) :
 	FLAC::Decoder::File(),
@@ -206,13 +249,14 @@ Wave_decoder::Wave_decoder(const std::string &path, FILE *fp)
 	_samples(),
 	_transp()
 {
-	flacsplit::Sox_init::init();
+	Sox_init::init();
 	if (!(_fmt = sox_open_read(path.c_str(), 0, 0, 0)))
 		throw flacsplit::Sox_error("sox_open_read() error");
 
 	try {
 		assert(same_file(fp, _fmt->fp));
-		_samples_len = _fmt->signal.channels * _fmt->signal.rate;
+		_samples_len = _fmt->signal.channels * _fmt->signal.rate /
+		    FRAMES_PER_SEC;
 		_samples.reset(new sox_sample_t[_samples_len]);
 		_transp.reset(new int32_t[_samples_len]);
 		_transp_ptrs.reset(
@@ -245,7 +289,12 @@ Wave_decoder::next_frame(struct flacsplit::Frame &frame)
 		size_t j = sample;
 		for (size_t channel = 0; channel < frame.channels;
 		    channel++) {
-			_transp[j] = _samples[i];
+			SOX_SAMPLE_LOCALS;
+			unsigned clips = 0;
+			int32_t samp = SOX_SAMPLE_TO_SIGNED_16BIT(
+			    _samples[i], clips);
+			if (clips) std::cout << "clips " << clips << '\n';
+			_transp[j] = samp;
 			i++;
 			j += frame.samples;
 		}
@@ -312,17 +361,3 @@ flacsplit::Decoder::Decoder(const std::string &path, FILE *fp,
 		break;
 	}
 }
-
-flacsplit::Sox_init::~Sox_init()
-{
-	if (_valid) sox_format_quit();
-}
-
-void
-flacsplit::Sox_init::do_init() throw (Sox_error)
-{
-	_valid = sox_format_init() == SOX_SUCCESS;
-	if (!_valid) throw Sox_error("sox_format_init() error");
-}
-
-flacsplit::Sox_init flacsplit::Sox_init::_instance;

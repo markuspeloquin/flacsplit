@@ -11,28 +11,6 @@
 
 namespace flacsplit {
 
-class Sox_init {
-public:
-	Sox_init() : _valid(false) {}
-	~Sox_init();
-
-	static void init() throw (Sox_error)
-	{
-		if (!_instance._valid)
-			_instance.do_init();
-	}
-
-private:
-	Sox_init(const Sox_init &) {}
-	void operator=(const Sox_init &) {}
-
-	void do_init() throw (Sox_error);
-
-	static Sox_init _instance;
-
-	bool _valid;
-};
-
 struct Decode_error : std::exception {
 	Decode_error() : std::exception() {}
 };
