@@ -1,4 +1,4 @@
-It can split FLAC files fine, but not WAVE files.  Features I remember:
+It can split FLAC and WAVE files based on a cuesheet.  Features I remember:
  - Add a 'REM OFFSET <N>' line to a cuesheet to add <N> to all track
    numbers for file naming and tagging purposes.  For multi-disc albums.
  - Cuesheets can be UTF-8 or ISO8859-1.
@@ -10,6 +10,7 @@ It can split FLAC files fine, but not WAVE files.  Features I remember:
      sanitizes to just ' '.  I have no better solution than hard-coding
      that case.
  - FLAC files always encoded with --best.
+ - Replaygain information added with multiflac.
 
 Build dependencies: cmake, flex, yacc
 Runtime dependencies: boost, flac (with C++ bindings), icu, sox
