@@ -117,7 +117,8 @@ protected:
 private:
 	FILE				*_fp;
 	const FLAC__Frame		*_last_frame;
-	const FLAC__int32 *const	*_last_buffer;
+	boost::scoped_array<const FLAC__int32 *>
+					_last_buffer;
 	const char			*_last_status;
 	bool				_frame_retrieved;
 };
@@ -200,7 +201,7 @@ Flac_decoder::next_frame(struct flacsplit::Frame &frame)
 			throw Flac_decode_error(get_state().as_cstring());
 	if (_last_status)
 		throw Flac_decode_error(_last_status);
-	frame.data = _last_buffer;
+	frame.data = _last_buffer.get();
 	frame.channels = _last_frame->header.channels;
 	frame.samples = _last_frame->header.blocksize;
 	frame.rate = _last_frame->header.sample_rate;
@@ -211,8 +212,20 @@ FLAC__StreamDecoderWriteStatus
 Flac_decoder::write_callback(const FLAC__Frame *frame,
     const FLAC__int32 *const *buffer)
 {
+	if (!_last_buffer.get())
+		// the number of channels should be constant
+		_last_buffer.reset(new const FLAC__int32 *[
+		    frame->header.channels]);
+
+	/*
+	 * usually, 'buffer' is an array; when there is a short, unaligned,
+	 * read, 'buffer' is a temporary heap-allocated buffer that must be
+	 * copied
+	 */
+
 	_last_frame = frame;
-	_last_buffer = buffer;
+	std::copy(buffer, buffer + frame->header.channels,
+	    _last_buffer.get());
 	_last_status = 0;
 	_frame_retrieved = false;
 	return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;

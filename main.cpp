@@ -501,7 +501,6 @@ once(const std::string &cue_path, const std::string *out_dir)
 	std::string derived_path;
 	FILE *fp = 0;
 	boost::scoped_ptr<Decoder> decoder;
-	bool decoded_any = false; // useless init
 	std::vector<std::string> out_paths;
 
 	for (unsigned i = 0; i < tracks; i++) {
@@ -536,7 +535,6 @@ once(const std::string &cue_path, const std::string *out_dir)
 				return false;
 			}
 
-			decoded_any = false;
 		}
 
 		std::string out_name;
