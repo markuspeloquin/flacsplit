@@ -119,6 +119,7 @@ private:
 	const FLAC__Frame		*_last_frame;
 	const FLAC__int32 *const	*_last_buffer;
 	const char			*_last_status;
+	bool				_frame_retrieved;
 };
 
 class Wave_decoder : public flacsplit::Basic_decoder {
@@ -179,7 +180,8 @@ Flac_decoder::Flac_decoder(FILE *fp) throw (Flac_decode_error) :
 	_fp(fp),
 	_last_frame(0),
 	_last_buffer(0),
-	_last_status(0)
+	_last_status(0),
+	_frame_retrieved(false)
 {
 	FLAC__StreamDecoderInitStatus status;
 	if ((status = init(fp)) != FLAC__STREAM_DECODER_INIT_STATUS_OK)
@@ -191,14 +193,18 @@ void
 Flac_decoder::next_frame(struct flacsplit::Frame &frame)
     throw (Flac_decode_error)
 {
-	if (!process_single())
-		throw Flac_decode_error(get_state().as_cstring());
+	// a seek will trigger a call to write_callback(), so don't process
+	// the next frame if it hasn't been seen yet here
+	if (!_last_frame || _frame_retrieved)
+		if (!process_single())
+			throw Flac_decode_error(get_state().as_cstring());
 	if (_last_status)
 		throw Flac_decode_error(_last_status);
 	frame.data = _last_buffer;
 	frame.channels = _last_frame->header.channels;
 	frame.samples = _last_frame->header.blocksize;
 	frame.rate = _last_frame->header.sample_rate;
+	_frame_retrieved = true;
 }
 
 FLAC__StreamDecoderWriteStatus
@@ -208,6 +214,7 @@ Flac_decoder::write_callback(const FLAC__Frame *frame,
 	_last_frame = frame;
 	_last_buffer = buffer;
 	_last_status = 0;
+	_frame_retrieved = false;
 	return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
 
@@ -293,7 +300,7 @@ Wave_decoder::next_frame(struct flacsplit::Frame &frame)
 			unsigned clips = 0;
 			int32_t samp = SOX_SAMPLE_TO_SIGNED_16BIT(
 			    _samples[i], clips);
-			if (clips) std::cout << "clips " << clips << '\n';
+			assert(!clips);
 			_transp[j] = samp;
 			i++;
 			j += frame.samples;

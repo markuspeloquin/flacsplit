@@ -569,17 +569,9 @@ once(const std::string &cue_path, const std::string *out_dir)
 		decoder->seek_frame(begin[i]);
 		do {
 			decoder->next_frame(frame);
-			if (!decoded_any) {
-				// did not know sample rate before, so seek
-				// failed; now that a frame was decoded, it
-				// should work
-				if (begin[i]) {
-					decoder->seek_frame(begin[i]);
-					decoder->next_frame(frame);
-				}
-				decoded_any = true;
-			}
 
+			// with FLAC, stream properties like the sample rate
+			// aren't known until after the first seek/process
 			if (!track_samples) {
 				double		samples;
 				if (end[i]) {
