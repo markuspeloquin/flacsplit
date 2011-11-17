@@ -279,7 +279,7 @@ get_cue_extra(const std::string &path,
 
 			char *endptr;
 			errno = 0;
-			offset = strtoul(soff.c_str(), &endptr, 0);
+			offset = strtoul(soff.c_str(), &endptr, 10);
 			if (errno || *endptr) {
 				if (!errno) errno = EINVAL;
 				throw flacsplit::Unix_error(
