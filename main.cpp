@@ -64,6 +64,64 @@ void		sanitize(const std::string &, std::string &);
 void		split_path(const std::string &, std::string &, std::string &);
 void		usage(const boost::program_options::options_description &);
 
+
+const uint16_t LATIN_MAP_BEGIN = 0xc0;
+const uint16_t LATIN_MAP_END = 0X180;
+const char *LATIN_MAP[] = {
+	// latin-1
+	"A", "A", "A", "A", "A", "A",
+	"AE",
+	"C",
+	"E", "E", "E", "E",
+	"I", "I", "I", "I",
+	"DH",
+	"N",
+	"O", "O", "O", "O", "O",
+	0,
+	"O",
+	"U", "U", "U", "U",
+	"Y",
+	"th",
+	"ss",
+	"a", "a", "a", "a", "a", "a",
+	"ae",
+	"c",
+	"e", "e", "e", "e",
+	"i", "i", "i", "i",
+	"dh",
+	"n",
+	"o", "o", "o", "o", "o",
+	0,
+	"o",
+	"u", "u", "u", "u",
+	"y",
+	"th",
+	"y",
+	// latin extended-A
+	"A", "a", "A", "a", "A", "a",
+	"C", "c", "C", "c", "C", "c", "C", "c",
+	"D", "d", "D", "d",
+	"E", "e", "E", "e", "E", "e", "E", "e", "E", "e",
+	"G", "g", "G", "g", "G", "g", "G", "g",
+	"H", "h", "H", "h",
+	"I", "i", "I", "i", "I", "i", "I", "i", "I", "i",
+	"IJ", "ij",
+	"J", "j",
+	"K", "k", "k",
+	"L", "l", "L", "l", "L", "l", "L", "l", "L", "l",
+	"N", "n", "N", "n", "N", "n", "n", "N", "n",
+	"O", "o", "O", "o", "O", "o",
+	"OE", "oe",
+	"R", "r", "R", "r", "R", "r",
+	"S", "s", "S", "s", "S", "s", "S", "s",
+	"T", "t", "T", "t", "T", "t",
+	"U", "u", "U", "u", "U", "u", "U", "u", "U", "u", "U", "u",
+	"W", "w",
+	"Y", "y", "Y",
+	"Z", "z", "Z", "z", "Z", "z",
+	"s"
+};
+
 class Cuetools_cd {
 public:
 	Cuetools_cd() : _cd(0) {}
@@ -348,57 +406,31 @@ sanitize(const std::string &str, std::string &out)
 		// strings should be pre-encoded in utf8
 		assert(c > 0);
 
-		if ((0x30 <= c && c < 0x3a) ||
+		if (isdigit(c) || c == 0x20 ||
 		    (0x41 <= c && c < 0x5b) ||
-		    (0x61 <= c && c < 0x7b) ||
-		    c == 0x20)
+		    (0x61 <= c && c < 0x7b))
 			res += static_cast<char>(c);
-		else if (c == 0x09)			res += ' ';
-		else if (0xc0 <= c && c < 0xc6)		res += 'A';
-		else if (c == 0xc6) {
-			res += "Ae";
-			guessed.push_back(res.size()-1);
-		} else if (c == 0xc7)			res += 'C';
-		else if (0xc8 <= c && c < 0xcc)		res += 'E';
-		else if (0xcc <= c && c < 0xd0)		res += 'I';
-		else if (c == 0xd0) {
-			res += "Dh";
-			guessed.push_back(res.size()-1);
-		} else if (c == 0xd1)			res += 'N';
-		else if (0xd2 <= c && c < 0xd7)		res += 'O';
-		else if (0xd9 <= c && c < 0xdd)		res += 'U';
-		else if (c == 0xdd)			res += 'Y';
-		else if (c == 0xde) {
-			res += "Th";
-			guessed.push_back(res.size()-1);
-		} else if (c == 0xdf)			res += "ss";
-		else if (0xe0 <= c && c < 0xe6)		res += 'a';
-		else if (c == 0xe6)			res += "ae";
-		else if (c == 0xe7)			res += 'c';
-		else if (0xe8 <= c && c < 0xec)		res += 'e';
-		else if (0xec <= c && c < 0xf0)		res += 'i';
-		else if (c == 0xf0)			res += "dh";
-		else if (c == 0xf1)			res += 'n';
-		else if (0xf2 <= c && c < 0xf7)		res += 'o';
-		else if (0xf9 <= c && c < 0xfd)		res += 'u';
-		else if (c == 0xfd || c == 0xff)	res += 'y';
-		else if (c == 0xfe)			res += "th";
-		else if (c == 0x152) {
-			res += "Oe";
-			guessed.push_back(res.size()-1);
-		} else if (c == 0xf8 || c == 0x0153)	res += "oe";
+		else if (c == 0x09)
+			res += ' ';
+		else if (LATIN_MAP_BEGIN <= c && c < LATIN_MAP_END) {
+			const char *s = LATIN_MAP[c - LATIN_MAP_BEGIN];
+			if (s) {
+				res += s;
+				if (s[1]) // length > 1
+					guessed.push_back(res.size()-1);
+			}
+		}
 		// ignore all else
 	}
 
-	// upper-case the letters with guessed cases as best as can
-	// be done (e.g. AeBLAH should have been AEBLAH)
-	for (std::vector<size_t>::iterator i = guessed.begin();
-	    i != guessed.end(); ++i)
-		if (*i < res.size() - 1 && isalpha(res[*i + 1])) {
-			if (isupper(res[*i + 1]))
-				res[*i] = toupper(res[*i]);
-		} else if (*i && isalpha(res[*i - 1]))
-			res[*i] = toupper(res[*i]);
+	// lower-case the letters with guessed cases as best as can
+	// be done (e.g. AEnir should have been Aenir)
+	for (std::vector<size_t>::iterator iter = guessed.begin();
+	    iter != guessed.end(); ++iter) {
+		size_t i = *iter;
+		if (i != res.size() - 1 && islower(res[i+1]))
+			res[i] = tolower(res[i]);
+	}
 
 	std::swap(out, res);
 }
