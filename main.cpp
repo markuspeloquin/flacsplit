@@ -416,7 +416,7 @@ sanitize(const std::string &str, std::string &out)
 			const char *s = LATIN_MAP[c - LATIN_MAP_BEGIN];
 			if (s) {
 				res += s;
-				if (s[1]) // length > 1
+				if (s[0] && s[1] && isupper(s[1]))
 					guessed.push_back(res.size()-1);
 			}
 		}
