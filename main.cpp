@@ -424,7 +424,7 @@ sanitize(const std::string &str, std::string &out)
 	}
 
 	// lower-case the letters with guessed cases as best as can
-	// be done (e.g. AEnir should have been Aenir)
+	// be done (e.g. AErin should have been Aerin)
 	for (std::vector<size_t>::iterator iter = guessed.begin();
 	    iter != guessed.end(); ++iter) {
 		size_t i = *iter;
