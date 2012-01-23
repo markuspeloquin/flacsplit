@@ -64,9 +64,6 @@ void		sanitize(const std::string &, std::string &);
 void		split_path(const std::string &, std::string &, std::string &);
 void		usage(const boost::program_options::options_description &);
 
-
-const uint16_t LATIN_MAP_BEGIN = 0xc0;
-const uint16_t LATIN_MAP_END = 0X180;
 const char *LATIN_MAP[] = {
 	// latin-1
 	"A", "A", "A", "A", "A", "A",
@@ -121,6 +118,9 @@ const char *LATIN_MAP[] = {
 	"Z", "z", "Z", "z", "Z", "z",
 	"s"
 };
+const uint16_t LATIN_MAP_BEGIN = 0xc0;
+const uint16_t LATIN_MAP_END = LATIN_MAP_BEGIN +
+    sizeof(LATIN_MAP) / sizeof(*LATIN_MAP);
 
 class Cuetools_cd {
 public:
