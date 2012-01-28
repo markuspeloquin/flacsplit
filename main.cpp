@@ -324,6 +324,9 @@ get_cue_extra(const std::string &path,
 		} else if (in.eof())
 			break;
 
+		if (line[line.size() - 1] == '\r')
+			line.resize(line.size() - 1);
+
 		if (!line.compare(0, GENRE.size(), GENRE))
 			genre = line.substr(GENRE.size(),
 			    line.size() - GENRE.size());

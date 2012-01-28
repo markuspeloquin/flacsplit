@@ -1,0 +1,19 @@
+*.a
+*.dll
+*.exe
+*.o
+*.so
+*.sw[op]
+.sw[op]
+
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# specific
+/libcuefile/Makefile
+/libcuefile/src/Makefile
+/libcuefile/src/cue_parse.c
+/libcuefile/src/cue_parse.h
+/libcuefile/src/cue_scan.c
+/libcuefile/src/cue_scan.h
