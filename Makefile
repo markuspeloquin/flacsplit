@@ -42,7 +42,7 @@ errors.o: errors.cpp \
 main.o: main.cpp \
 	decode.hpp \
 	encode.hpp \
- 	errors.hpp \
+	errors.hpp \
 	replaygain.hpp \
 	sanitize.hpp \
 	transcode.hpp
