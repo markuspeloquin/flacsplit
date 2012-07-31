@@ -4,15 +4,15 @@ LDFLAGS += -L/usr/local/lib
 LIBS += -lFLAC -lFLAC++ -lboost_program_options-mt -licuuc -lsox
 
 OBJS = \
-       decode.o \
-       encode.o \
-       errors.o \
-       main.o \
-       replaygain.o \
-       sanitize.o \
-       transcode.o \
-       libcuefile.a \
-#
+	decode.o \
+	encode.o \
+	errors.o \
+	main.o \
+	replaygain.o \
+	sanitize.o \
+	transcode.o \
+	libcuefile.a \
+	#
 
 all: recursive-all flacsplit
 
