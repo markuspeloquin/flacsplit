@@ -9,6 +9,7 @@ OBJS = \
        errors.o \
        main.o \
        replaygain.o \
+       sanitize.o \
        transcode.o \
        libcuefile.a \
 #
@@ -43,11 +44,15 @@ main.o: main.cpp \
 	encode.hpp \
     	errors.hpp \
 	replaygain.hpp \
+	sanitize.hpp \
 	transcode.hpp
 
 replaygain.o: replaygain.cpp \
 	replaygain.hpp \
 	errors.hpp 
+
+sanitize.o: sanitize.cpp \
+	sanitize.hpp
 
 transcode.o: transcode.cpp \
 	transcode.hpp

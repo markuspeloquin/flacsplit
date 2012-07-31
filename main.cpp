@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, Markus Peloquin <markus@cs.wisc.edu>
+/* Copyright (c) 2011--2012, Markus Peloquin <markus@cs.wisc.edu>
  * 
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -40,10 +40,12 @@
 #include "encode.hpp"
 #include "errors.hpp"
 #include "replaygain.hpp"
+#include "sanitize.hpp"
 #include "transcode.hpp"
 
 const char *prog;
 
+namespace flacsplit {
 namespace {
 
 template <typename In>
@@ -60,67 +62,8 @@ void		make_album_path(const flacsplit::Music_info &album,
 void		make_track_name(const flacsplit::Music_info &track,
 		    std::string &);
 bool		once(const std::string &, const std::string *);
-void		sanitize(const std::string &, std::string &);
 void		split_path(const std::string &, std::string &, std::string &);
 void		usage(const boost::program_options::options_description &);
-
-const char *LATIN_MAP[] = {
-	// latin-1
-	"A", "A", "A", "A", "A", "A",
-	"AE",
-	"C",
-	"E", "E", "E", "E",
-	"I", "I", "I", "I",
-	"DH",
-	"N",
-	"O", "O", "O", "O", "O",
-	0,
-	"O",
-	"U", "U", "U", "U",
-	"Y",
-	"th",
-	"ss",
-	"a", "a", "a", "a", "a", "a",
-	"ae",
-	"c",
-	"e", "e", "e", "e",
-	"i", "i", "i", "i",
-	"dh",
-	"n",
-	"o", "o", "o", "o", "o",
-	0,
-	"o",
-	"u", "u", "u", "u",
-	"y",
-	"th",
-	"y",
-	// latin extended-A
-	"A", "a", "A", "a", "A", "a",
-	"C", "c", "C", "c", "C", "c", "C", "c",
-	"D", "d", "D", "d",
-	"E", "e", "E", "e", "E", "e", "E", "e", "E", "e",
-	"G", "g", "G", "g", "G", "g", "G", "g",
-	"H", "h", "H", "h",
-	"I", "i", "I", "i", "I", "i", "I", "i", "I", "i",
-	"IJ", "ij",
-	"J", "j",
-	"K", "k", "k",
-	"L", "l", "L", "l", "L", "l", "L", "l", "L", "l",
-	"N", "n", "N", "n", "N", "n", "n", "N", "n",
-	"O", "o", "O", "o", "O", "o",
-	"OE", "oe",
-	"R", "r", "R", "r", "R", "r",
-	"S", "s", "S", "s", "S", "s", "S", "s",
-	"T", "t", "T", "t", "T", "t",
-	"U", "u", "U", "u", "U", "u", "U", "u", "U", "u", "U", "u",
-	"W", "w",
-	"Y", "y", "Y",
-	"Z", "z", "Z", "z", "Z", "z",
-	"s"
-};
-const uint16_t LATIN_MAP_BEGIN = 0xc0;
-const uint16_t LATIN_MAP_END = LATIN_MAP_BEGIN +
-    sizeof(LATIN_MAP) / sizeof(*LATIN_MAP);
 
 class Cuetools_cd {
 public:
@@ -365,8 +308,8 @@ make_album_path(const flacsplit::Music_info &album,
 	if (path_vec.back().empty())
 		path_vec.back() = "no album";
 
-	sanitize(path_vec[0], path_vec[0]);
-	sanitize(path_vec[1], path_vec[1]);
+	path_vec[0] = sanitize(path_vec[0]);
+	path_vec[1] = sanitize(path_vec[1]);
 
 	std::ostringstream pathout;
 	pathout << path_vec[0] << '/' << path_vec[1];
@@ -378,64 +321,11 @@ make_album_path(const flacsplit::Music_info &album,
 void
 make_track_name(const flacsplit::Music_info &track, std::string &name)
 {
-	std::string title;
-	sanitize(track.title(), title);
-
 	std::ostringstream nameout;
 	nameout << std::setfill('0') << std::setw(2)
 	    << static_cast<int>(track.track())
-	    << ' ' << title;
+	    << ' ' << sanitize(track.title());
 	name = nameout.str();
-}
-
-void
-sanitize(const std::string &str, std::string &out)
-{
-	std::vector<size_t>	guessed;
-	std::string		res;
-	const char	*s = str.c_str();
-	int32_t		length = str.size();
-	int32_t		i = 0;
-
-	// Sigur Ros exception
-	if (str == "( )") {
-		out = "Untitled";
-		return;
-	}
-
-	while (i < length) {
-		int32_t	c;
-		U8_NEXT(s, i, length, c);
-		// strings should be pre-encoded in utf8
-		assert(c > 0);
-
-		if (isdigit(c) || c == 0x20 ||
-		    (0x41 <= c && c < 0x5b) ||
-		    (0x61 <= c && c < 0x7b))
-			res += static_cast<char>(c);
-		else if (c == 0x09)
-			res += ' ';
-		else if (LATIN_MAP_BEGIN <= c && c < LATIN_MAP_END) {
-			const char *s = LATIN_MAP[c - LATIN_MAP_BEGIN];
-			if (s) {
-				res += s;
-				if (s[0] && s[1] && isupper(s[1]))
-					guessed.push_back(res.size()-1);
-			}
-		}
-		// ignore all else
-	}
-
-	// lower-case the letters with guessed cases as best as can
-	// be done (e.g. AErin should have been Aerin)
-	for (std::vector<size_t>::iterator iter = guessed.begin();
-	    iter != guessed.end(); ++iter) {
-		size_t i = *iter;
-		if (i != res.size() - 1 && islower(res[i+1]))
-			res[i] = tolower(res[i]);
-	}
-
-	std::swap(out, res);
 }
 
 void
@@ -443,16 +333,16 @@ split_path(const std::string &path, std::string &dirname,
     std::string &basename)
 {
 	size_t slash = path.rfind("/");
-	if (!slash) {
+	if (slash == 0) {
 		dirname = "/";
 		basename = path.substr(1);
 	} else if (slash == std::string::npos) {
 		dirname = "";
 		basename = path;
-	} else if (slash == path.size()-1)
+	} else if (slash == path.size()-1) {
 		// path ends in '/', so strip '/' and try again
 		split_path(path.substr(0, slash), dirname, basename);
-	else {
+	} else {
 		dirname = path.substr(0, slash);
 		basename = path.substr(slash + 1);
 	}
@@ -466,7 +356,8 @@ usage(const boost::program_options::options_description &desc)
 }
 
 bool
-once(const std::string &cue_path, const std::string *out_dir)
+once(const std::string &cue_path, const std::string *out_dir,
+    bool switch_index)
 {
 	using namespace flacsplit;
 
@@ -521,12 +412,13 @@ once(const std::string &cue_path, const std::string *out_dir)
 	}
 
 	// shift pregaps into preceding tracks
-	for (unsigned i = 0; i < tracks; i++) {
-		if (i)
-			begin[i] += pregap[i];
-		if (i != tracks-1)
-			end[i] += pregap[i+1];
-	}
+	if (!switch_index)
+		for (unsigned i = 0; i < tracks; i++) {
+			if (i)
+				begin[i] += pregap[i];
+			if (i != tracks-1)
+				end[i] += pregap[i+1];
+		}
 
 	std::vector<std::string> dir_components;
 	std::string dir_path;
@@ -657,10 +549,13 @@ once(const std::string &cue_path, const std::string *out_dir)
 }
 
 } // end anon
+} // end flacsplit
 
 int
 main(int argc, char **argv)
 {
+	using namespace flacsplit;
+
 	namespace po = boost::program_options;
 
 	prog = *argv;
@@ -670,6 +565,7 @@ main(int argc, char **argv)
 	    ("help", "show this message")
 	    ("outdir,O", po::value<std::string>(),
 		"parent directory to output to")
+	    ("switch-index,i", "use INDEX 00 for splitting instead of 01")
 	    ;
 
 	po::options_description hidden_desc;
@@ -725,9 +621,11 @@ main(int argc, char **argv)
 			out_dir.reset(new std::string(opt.as<std::string>()));
 	}
 
+	bool switch_index = !var_map["switch-index"].empty();
+
 	for (std::vector<std::string>::iterator i = cuefiles.begin();
 	    i != cuefiles.end(); ++i)
-		if (!once(*i, out_dir.get()))
+		if (!once(*i, out_dir.get(), switch_index))
 			return 1;
 	return 0;
 }

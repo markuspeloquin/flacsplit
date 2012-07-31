@@ -344,10 +344,11 @@ Wave_decoder::next_frame(struct flacsplit::Frame &frame)
 enum flacsplit::file_format
 get_file_format(FILE *fp)
 {
-	char buf[12];
 	const char *const RIFF = "RIFF";
 	const char *const WAVE = "WAVE";
 	const char *const FLAC = "fLaC";
+
+	char buf[12];
 
 	if (!fread(buf, sizeof(buf), 1, fp))
 		return flacsplit::FF_UNKNOWN;
