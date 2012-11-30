@@ -565,7 +565,9 @@ main(int argc, char **argv)
 	    ("help", "show this message")
 	    ("outdir,O", po::value<std::string>(),
 		"parent directory to output to")
-	    ("switch-index,i", "use INDEX 00 for splitting instead of 01")
+	    ("switch-index,i", "use INDEX 00 for splitting instead of 01 "
+		"(most CD players seek to INDEX 01 instead of INDEX 00 if "
+		"available, but some CDs don't play by those rules)")
 	    ;
 
 	po::options_description hidden_desc;
