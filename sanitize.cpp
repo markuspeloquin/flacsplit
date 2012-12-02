@@ -111,7 +111,7 @@ flacsplit::sanitize(const std::string &str)
 			const char *s = LATIN_MAP[c - LATIN_MAP_BEGIN];
 			if (s) {
 				res += s;
-				if (s[0] && s[1] && isupper(s[1]))
+				if (s[0] && isupper(s[1]))
 					guessed.push_back(res.size()-1);
 			}
 		}
@@ -123,7 +123,7 @@ flacsplit::sanitize(const std::string &str)
 	for (std::vector<size_t>::iterator iter = guessed.begin();
 	    iter != guessed.end(); ++iter) {
 		size_t i = *iter;
-		if (i != res.size() - 1 && islower(res[i+1]))
+		if (i != res.size() - 1 && !isupper(res[i+1]))
 			res[i] = tolower(res[i]);
 	}
 
