@@ -8,9 +8,9 @@
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
+ * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -288,7 +288,8 @@ Wave_decoder::Wave_decoder(const std::string &path, FILE *fp)
 		throw flacsplit::Sox_error("sox_open_read() error");
 
 	try {
-		assert(same_file(fp, _fmt->fp));
+		// XXX sox-14.4.0 has sox_format_t::fp declared as void*
+		assert(same_file(fp, reinterpret_cast<FILE *>(_fmt->fp)));
 		_samples_len = _fmt->signal.channels * _fmt->signal.rate /
 		    FRAMES_PER_SEC;
 		_samples.reset(new sox_sample_t[_samples_len]);
@@ -361,20 +362,23 @@ get_file_format(FILE *fp)
 	return flacsplit::FF_UNKNOWN;
 }
 
+/** Check that two C file pointers reference the same underlying file
+ * (according to the device and inode).
+ * \throws flacsplit::Unix_error if there is a problem calling fstat(2) on an
+ *	underlying file descriptor
+ * \return whether they are the same
+ */
 bool
 same_file(FILE *a, FILE *b) throw (flacsplit::Unix_error)
 {
-	struct stat st;
-	dev_t adevice;
-	ino_t ainode;
+	struct stat st_a;
+	struct stat st_b;
 
-	if (fstat(fileno(a), &st))
+	if (fstat(fileno(a), &st_a))
 		throw flacsplit::Unix_error("statting open file");
-	adevice = st.st_dev;
-	ainode = st.st_ino;
-	if (fstat(fileno(b), &st))
+	if (fstat(fileno(b), &st_b))
 		throw flacsplit::Unix_error("statting open file");
-	return adevice == st.st_dev && ainode == st.st_ino;
+	return st_a.st_dev == st_b.st_dev && st_a.st_ino == st_b.st_ino;
 }
 
 } // end anon
