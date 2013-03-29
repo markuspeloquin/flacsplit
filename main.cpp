@@ -48,12 +48,24 @@ const char *prog;
 namespace flacsplit {
 namespace {
 
+struct options {
+	const std::string	*out_dir;
+	bool			switch_index;
+	bool			use_flac;
+
+	options(const std::string *out_dir, bool switch_index, bool use_flac) :
+		out_dir(out_dir),
+		switch_index(switch_index),
+		use_flac(use_flac)
+	{}
+};
+
 template <typename In>
 void		create_dirs(In begin, In end, const std::string *)
 		    throw (flacsplit::Unix_error);
 std::string	escape_cue_string(const std::string &);
 bool		extension(const std::string &, std::string &, std::string &);
-FILE		*find_file(const std::string &, std::string &);
+FILE		*find_file(const std::string &, std::string &, bool);
 std::string	frametime(uint32_t);
 void		get_cue_extra(const std::string &, std::string &out_genre,
 		    std::string &out_date) throw (flacsplit::Unix_error);
@@ -61,7 +73,7 @@ void		make_album_path(const flacsplit::Music_info &album,
 		    std::vector<std::string> &, std::string &);
 void		make_track_name(const flacsplit::Music_info &track,
 		    std::string &);
-bool		once(const std::string &, const std::string *);
+bool		once(const std::string &, const struct options *);
 void		split_path(const std::string &, std::string &, std::string &);
 void		usage(const boost::program_options::options_description &);
 
@@ -170,7 +182,7 @@ extension(const std::string &str, std::string &base, std::string &ext)
 }
 
 FILE *
-find_file(const std::string &path, std::string &out_path)
+find_file(const std::string &path, std::string &out_path, bool use_flac)
 {
 	std::string	base;
 	std::string	ext;
@@ -178,38 +190,27 @@ find_file(const std::string &path, std::string &out_path)
 	FILE		*fp;
 	bool		have_ext;
 
-	fp = fopen(path.c_str(), "rb");
-	if (fp || errno != ENOENT) {
-		out_path = path;
-		return fp;
-	}
-
-	have_ext = extension(path, base, ext);
-	if (have_ext) {
-		if (ext != "wav") {
-			guess = base + ".wav";
-			fp = fopen(guess.c_str(), "rb");
-			if (fp || errno != ENOENT) {
-				out_path = guess;
-				return fp;
-			}
-		}
-		if (ext != "flac") {
-			guess = base + ".flac";
-			fp = fopen(guess.c_str(), "rb");
-			if (fp || errno != ENOENT) {
-				out_path = guess;
-				return fp;
-			}
-		}
-	} else {
-		guess = path + ".wav";
-		fp = fopen(guess.c_str(), "rb");
+	if (!use_flac) {
+		fp = fopen(path.c_str(), "rb");
 		if (fp || errno != ENOENT) {
-			out_path = guess;
+			out_path = path;
 			return fp;
 		}
-		guess = path + ".flac";
+	}
+
+	const char *guesses[] = { "wav", "flac" };
+	size_t num_guesses = sizeof(guesses) / sizeof(*guesses);
+	if (use_flac) std::swap(guesses[0], guesses[1]);
+
+	have_ext = extension(path, base, ext);
+	if (!have_ext)
+		base = path;
+
+	for (size_t i = 0; i < num_guesses; i++) {
+		std::string suf(guesses[i]);
+		guess = base;
+		guess += '.';
+		guess += suf;
 		fp = fopen(guess.c_str(), "rb");
 		if (fp || errno != ENOENT) {
 			out_path = guess;
@@ -356,8 +357,7 @@ usage(const boost::program_options::options_description &desc)
 }
 
 bool
-once(const std::string &cue_path, const std::string *out_dir,
-    bool switch_index)
+once(const std::string &cue_path, const struct options *options)
 {
 	using namespace flacsplit;
 
@@ -412,7 +412,7 @@ once(const std::string &cue_path, const std::string *out_dir,
 	}
 
 	// shift pregaps into preceding tracks
-	if (!switch_index)
+	if (!options->switch_index)
 		for (unsigned i = 0; i < tracks; i++) {
 			if (i)
 				begin[i] += pregap[i];
@@ -423,14 +423,17 @@ once(const std::string &cue_path, const std::string *out_dir,
 	std::vector<std::string> dir_components;
 	std::string dir_path;
 	make_album_path(album_info, dir_components, dir_path);
-	create_dirs(dir_components.begin(), dir_components.end(), out_dir);
+	create_dirs(dir_components.begin(), dir_components.end(),
+	    options->out_dir);
 
 	// construct base of output pathnames
-	if (out_dir) {
+	if (options->out_dir) {
 		std::ostringstream out;
-		if (*out_dir != "") {
-			out << *out_dir;
-			if ((*out_dir)[out_dir->size()-1] != '/')
+		if (*options->out_dir != "") {
+			out << *options->out_dir;
+			char last = (*options->out_dir)[
+			    options->out_dir->size()-1];
+			if (last != '/')
 				out << '/';
 		}
 		out << dir_path << '/';
@@ -455,7 +458,7 @@ once(const std::string &cue_path, const std::string *out_dir,
 			// switch file
 
 			path = cur_path;
-			fp = find_file(path, derived_path);
+			fp = find_file(path, derived_path, options->use_flac);
 			if (!fp) {
 				std::cerr << prog << ": open `"
 				    << derived_path
@@ -563,6 +566,7 @@ main(int argc, char **argv)
 	po::options_description visible_desc("Options");
 	visible_desc.add_options()
 	    ("help", "show this message")
+	    ("use_flac,f", "split a FLAC instead of WAV if available")
 	    ("outdir,O", po::value<std::string>(),
 		"parent directory to output to")
 	    ("switch-index,i", "use INDEX 00 for splitting instead of 01 "
@@ -623,11 +627,14 @@ main(int argc, char **argv)
 			out_dir.reset(new std::string(opt.as<std::string>()));
 	}
 
-	bool switch_index = !var_map["switch-index"].empty();
+	bool switch_index = !var_map["switch_index"].empty();
+	bool use_flac = !var_map["use_flac"].empty();
+
+	struct options opts(out_dir.get(), switch_index, use_flac);
 
 	for (std::vector<std::string>::iterator i = cuefiles.begin();
 	    i != cuefiles.end(); ++i)
-		if (!once(*i, out_dir.get(), switch_index))
+		if (!once(*i, &opts))
 			return 1;
 	return 0;
 }
