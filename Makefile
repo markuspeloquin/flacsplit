@@ -20,8 +20,8 @@ recursive-all:
 	@if [ ! -f libcuefile/Makefile ]; then (cd libcuefile && cmake .); fi
 	@make -C libcuefile
 
-libcuefile.a:
-	ln -s libcuefile/src/libcuefile.a
+libcuefile.a: recursive-all
+	ln -sf libcuefile/src/libcuefile.a
 
 flacsplit: $(OBJS)
 	$(CXX) $(LDFLAGS) $^ $(LIBS) -o $@
