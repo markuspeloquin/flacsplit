@@ -1,3 +1,4 @@
+CFLAGS += -Wall -W -g -O2 -std=c99 -pedantic
 CXXFLAGS += -Wall -W -g -O2
 CPPFLAGS += -Ilibcuefile/include
 LDFLAGS += -L/usr/local/lib
@@ -7,6 +8,7 @@ OBJS = \
 	decode.o \
 	encode.o \
 	errors.o \
+	gain_analysis.o \
 	main.o \
 	replaygain.o \
 	sanitize.o \
@@ -39,10 +41,17 @@ encode.o: encode.cpp \
 errors.o: errors.cpp \
 	errors.hpp
 
+gain_analysis.o: \
+	gain_analysis.c \
+	gain_analysis.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+
 main.o: main.cpp \
 	decode.hpp \
 	encode.hpp \
 	errors.hpp \
+	gain_analysis.h \
+	gain_analysis.hpp \
 	replaygain.hpp \
 	sanitize.hpp \
 	transcode.hpp

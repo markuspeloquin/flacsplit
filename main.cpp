@@ -31,6 +31,7 @@
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/positional_options.hpp>
 #include <boost/program_options/variables_map.hpp>
+#include <boost/scoped_array.hpp>
 #include <boost/scoped_ptr.hpp>
 #include <boost/shared_ptr.hpp>
 #include <cuetools/cuefile.h>
@@ -39,9 +40,13 @@
 #include "decode.hpp"
 #include "encode.hpp"
 #include "errors.hpp"
+#include "gain_analysis.hpp"
 #include "replaygain.hpp"
 #include "sanitize.hpp"
 #include "transcode.hpp"
+
+// TODO figure out how to get this into the files
+//#define COMPUTE_REPLAYGAIN
 
 const char *prog;
 
@@ -75,6 +80,7 @@ void		make_track_name(const flacsplit::Music_info &track,
 		    std::string &);
 bool		once(const std::string &, const struct options *);
 void		split_path(const std::string &, std::string &, std::string &);
+void		transform_sample_fmt(const Frame &, double **);
 void		usage(const boost::program_options::options_description &);
 
 class Cuetools_cd {
@@ -329,33 +335,6 @@ make_track_name(const flacsplit::Music_info &track, std::string &name)
 	name = nameout.str();
 }
 
-void
-split_path(const std::string &path, std::string &dirname,
-    std::string &basename)
-{
-	size_t slash = path.rfind("/");
-	if (slash == 0) {
-		dirname = "/";
-		basename = path.substr(1);
-	} else if (slash == std::string::npos) {
-		dirname = "";
-		basename = path;
-	} else if (slash == path.size()-1) {
-		// path ends in '/', so strip '/' and try again
-		split_path(path.substr(0, slash), dirname, basename);
-	} else {
-		dirname = path.substr(0, slash);
-		basename = path.substr(slash + 1);
-	}
-}
-
-void
-usage(const boost::program_options::options_description &desc)
-{
-	std::cout << "Usage: " << prog << " [OPTIONS...] CUESHEET...\n"
-	    << desc;
-}
-
 bool
 once(const std::string &cue_path, const struct options *options)
 {
@@ -447,6 +426,15 @@ once(const std::string &cue_path, const struct options *options)
 	boost::scoped_ptr<Decoder> decoder;
 	std::vector<std::string> out_paths;
 
+#ifdef COMPUTE_REPLAYGAIN
+	// for replaygain analysis
+	replaygain::Sample_accum		rg_accum;
+	boost::scoped_ptr<replaygain::Analyzer>	rg_analyzer;
+	boost::scoped_array<double>		rg_samples;
+	double		*double_samples[] = { 0, 0 };
+	unsigned	dimens[] = { 0, 0 };
+#endif
+
 	for (unsigned i = 0; i < tracks; i++) {
 		Track *track = cd_get_track(cd, i+1);
 		std::string cur_path = cue_dir;
@@ -529,6 +517,11 @@ once(const std::string &cue_path, const struct options *options)
 				}
 				track_samples = static_cast<uint64_t>(
 				    samples + .5);
+
+#ifdef COMPUTE_REPLAYGAIN
+				rg_analyzer.reset(new replaygain::Analyzer(
+				    decoder->sample_rate()));
+#endif
 			}
 
 			uint64_t remaining = track_samples - samples;
@@ -536,8 +529,32 @@ once(const std::string &cue_path, const struct options *options)
 				frame.samples = remaining;
 			samples += frame.samples;
 
+#ifdef COMPUTE_REPLAYGAIN
+			if (frame.samples > dimens[0] ||
+			    frame.channels > dimens[1]) {
+				// reset the buffer for conversion to double
+				dimens[0] = frame.samples;
+				dimens[1] = frame.channels;
+				rg_samples.reset(new double[frame.samples *
+				    frame.channels]);
+				double_samples[0] = rg_samples.get();
+				double_samples[1] = double_samples[0] +
+				    frame.samples;
+			}
+			transform_sample_fmt(frame, double_samples);
+			rg_analyzer->add(double_samples[0], double_samples[1],
+			    frame.samples, frame.channels);
+#endif
+
 			encoder->add_frame(frame);
 		} while (samples < track_samples);
+
+#ifdef COMPUTE_REPLAYGAIN
+		replaygain::Sample rg_sample;
+		rg_analyzer->pop(rg_sample);
+		rg_accum += rg_sample;
+		double track_gain = rg_sample.adjustment();
+#endif
 
 		if (!encoder->finish()) {
 			std::cerr << prog << ": finish() failed\n";
@@ -545,10 +562,53 @@ once(const std::string &cue_path, const struct options *options)
 		}
 	}
 
+#ifdef COMPUTE_REPLAYGAIN
+	double album_gain = rg_accum.adjustment();
+#endif
+
 	std::cout << "> Calculating replay-gain values\n";
 	add_replay_gain(out_paths);
 
 	return true;
+}
+
+void
+split_path(const std::string &path, std::string &dirname,
+    std::string &basename)
+{
+	size_t slash = path.rfind("/");
+	if (slash == 0) {
+		dirname = "/";
+		basename = path.substr(1);
+	} else if (slash == std::string::npos) {
+		dirname = "";
+		basename = path;
+	} else if (slash == path.size()-1) {
+		// path ends in '/', so strip '/' and try again
+		split_path(path.substr(0, slash), dirname, basename);
+	} else {
+		dirname = path.substr(0, slash);
+		basename = path.substr(slash + 1);
+	}
+}
+
+void
+transform_sample_fmt(const Frame &frame, double **out)
+{
+	for (unsigned c = 0; c < frame.channels; c++) {
+		const int32_t	*channel_in = frame.data[c];
+		double		*channel_out = out[c];
+		for (unsigned s = 0; s < frame.samples; s++) {
+			channel_out[s] = static_cast<double>(channel_in[s]);
+		}
+	}
+}
+
+void
+usage(const boost::program_options::options_description &desc)
+{
+	std::cout << "Usage: " << prog << " [OPTIONS...] CUESHEET...\n"
+	    << desc;
 }
 
 } // end anon

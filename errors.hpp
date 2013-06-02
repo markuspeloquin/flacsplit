@@ -26,6 +26,18 @@ struct Bad_format : std::exception {
 	{	return "bad format"; }
 };
 
+struct Bad_samplefreq : std::exception {
+	const char *what() const throw ()
+	{	return "bad sample frequency"; }
+	virtual ~Bad_samplefreq() throw () {}
+};
+
+struct Not_enough_samples : public std::exception {
+	const char *what() const throw ()
+	{	return "not enough samples to calculate with"; }
+	virtual ~Not_enough_samples() throw () {}
+};
+
 struct Sox_error : std::exception {
 	Sox_error(const std::string &msg) :
 		std::exception(),

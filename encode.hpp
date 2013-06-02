@@ -31,8 +31,8 @@ public:
 	Basic_encoder() {}
 	virtual ~Basic_encoder() {}
 	virtual void add_frame(const struct Frame &) throw (Encode_error) = 0;
-	virtual void set_meta(const Music_info &) = 0;
 	virtual bool finish() = 0;
+	virtual void set_meta(const Music_info &) = 0;
 };
 
 class Encoder {

@@ -13,9 +13,11 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
 #include <cassert>
+#include <iomanip>
 #include <sstream>
 
 #include <FLAC++/encoder.h>
+#include <boost/algorithm/string/predicate.hpp>
 #include <boost/shared_ptr.hpp>
 
 #include "encode.hpp"
@@ -68,6 +70,9 @@ protected:
 	virtual FLAC__StreamEncoderTellStatus tell_callback(FLAC__uint64 *);
 
 private:
+	void append_replaygain_tags(double track_gain, double track_peak,
+	    double album_gain, double album_peak);
+	void delete_replaygain_tags();
 	void set_meta(const flacsplit::Music_info &);
 
 	FLAC::Metadata::VorbisComment	_tag;
@@ -109,6 +114,53 @@ Flac_encoder::add_frame(const struct flacsplit::Frame &frame)
 }
 
 void
+Flac_encoder::append_replaygain_tags(double track_gain, double track_peak,
+    double album_gain, double album_peak)
+{
+	using FLAC::Metadata::VorbisComment;
+
+	std::ostringstream formatter;
+	formatter << std::setprecision(2) << track_gain << " dB";
+	std::string track_gain_str = formatter.str();
+
+	formatter.str("");
+	formatter << std::setprecision(8) << track_peak;
+	std::string track_peak_str = formatter.str();
+
+	formatter.str("");
+	formatter << std::setprecision(2) << album_gain << " dB";
+	std::string album_gain_str = formatter.str();
+
+	formatter.str("");
+	formatter << std::setprecision(8) << album_peak;
+	std::string album_peak_str = formatter.str();
+
+	_tag.append_comment(VorbisComment::Entry(
+	    "REPLAYGAIN_REFERENCE_LOUDNESS", "89.0 dB"));
+	_tag.append_comment(VorbisComment::Entry(
+	    "REPLAYGAIN_TRACK_GAIN", track_gain_str.c_str()));
+	_tag.append_comment(VorbisComment::Entry(
+	    "REPLAYGAIN_TRACK_PEAK", track_peak_str.c_str()));
+	_tag.append_comment(VorbisComment::Entry(
+	    "REPLAYGAIN_ALBUM_GAIN", album_gain_str.c_str()));
+	_tag.append_comment(VorbisComment::Entry(
+	    "REPLAYGAIN_ALBUM_PEAK", album_peak_str.c_str()));
+}
+
+void
+Flac_encoder::delete_replaygain_tags()
+{
+	using FLAC::Metadata::VorbisComment;
+	// move backwards so the entries don't get shifted on us
+	for (unsigned i = _tag.get_num_comments(); i != 0;) {
+		i--;
+		VorbisComment::Entry entry = _tag.get_comment(i);
+		if (boost::starts_with(entry.get_field_name(), "REPLAYGAIN_"))
+			_tag.delete_comment(i);
+	}
+}
+
+void
 Flac_encoder::set_meta(const flacsplit::Music_info &track)
 {
 	using FLAC::Metadata::VorbisComment;
@@ -146,13 +198,13 @@ Flac_encoder::set_meta(const flacsplit::Music_info &track)
 		    "TRACKNUMBER", out.str().c_str()));
 	}
 
-
 	if (_tag.get_num_comments()) {
 		// using the C-style function to avoid stupid libFLAC++ bug
-		FLAC__StreamMetadata *meta =
+		FLAC__StreamMetadata *meta_comments =
 		    const_cast<FLAC__StreamMetadata *>(
 		    static_cast<const FLAC__StreamMetadata *>(_tag));
-		set_metadata(&meta, 1);
+
+		set_metadata(&meta_comments, 1);
 	}
 }
 
