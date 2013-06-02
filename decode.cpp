@@ -202,6 +202,7 @@ Flac_decoder::Flac_decoder(FILE *fp) throw (Flac_decode_error) :
 	if ((status = init(fp)) != FLAC__STREAM_DECODER_INIT_STATUS_OK)
 		throw Flac_decode_error(
 		    FLAC__StreamDecoderInitStatusString[status]);
+	seek(0);
 }
 
 void
@@ -385,6 +386,7 @@ same_file(FILE *a, FILE *b) throw (flacsplit::Unix_error)
 
 flacsplit::Decoder::Decoder(const std::string &path, FILE *fp,
     enum file_format format) throw (Bad_format, Sox_error) :
+	Basic_decoder(),
 	_decoder()
 {
 	if (format == FF_UNKNOWN)

@@ -39,7 +39,7 @@ public:
 	virtual uint64_t total_samples() const = 0;
 };
 
-class Decoder {
+class Decoder : public Basic_decoder {
 public:
 	Decoder(const std::string &, FILE *, enum file_format=FF_UNKNOWN)
 	    throw (Bad_format, Sox_error);
