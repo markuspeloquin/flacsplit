@@ -70,11 +70,16 @@ protected:
 	virtual FLAC__StreamEncoderTellStatus tell_callback(FLAC__uint64 *);
 
 private:
-	void append_replaygain_tags(double track_gain, double track_peak,
+	void _append_replaygain_tags(double track_gain, double track_peak,
 	    double album_gain, double album_peak);
-	void delete_replaygain_tags();
-	void set_meta(const flacsplit::Music_info &);
+	void _delete_replaygain_tags();
+	virtual void set_meta(const flacsplit::Music_info &track)
+	{
+		set_meta(track, true);
+	}
+	void set_meta(const flacsplit::Music_info &, bool);
 
+	FLAC::Metadata::Padding		_padding;
 	FLAC::Metadata::VorbisComment	_tag;
 
 	//std::vector<boost::shared_ptr<FLAC::Metadata::VorbisComment::Entry> >
@@ -114,12 +119,14 @@ Flac_encoder::add_frame(const struct flacsplit::Frame &frame)
 }
 
 void
-Flac_encoder::append_replaygain_tags(double track_gain, double track_peak,
+Flac_encoder::_append_replaygain_tags(double track_gain, double track_peak,
     double album_gain, double album_peak)
 {
 	using FLAC::Metadata::VorbisComment;
 
 	std::ostringstream formatter;
+	formatter << std::fixed;
+
 	formatter << std::setprecision(2) << track_gain << " dB";
 	std::string track_gain_str = formatter.str();
 
@@ -148,7 +155,7 @@ Flac_encoder::append_replaygain_tags(double track_gain, double track_peak,
 }
 
 void
-Flac_encoder::delete_replaygain_tags()
+Flac_encoder::_delete_replaygain_tags()
 {
 	using FLAC::Metadata::VorbisComment;
 	// move backwards so the entries don't get shifted on us
@@ -161,7 +168,8 @@ Flac_encoder::delete_replaygain_tags()
 }
 
 void
-Flac_encoder::set_meta(const flacsplit::Music_info &track)
+Flac_encoder::set_meta(const flacsplit::Music_info &track,
+    bool add_replaygain_padding)
 {
 	using FLAC::Metadata::VorbisComment;
 
@@ -198,13 +206,37 @@ Flac_encoder::set_meta(const flacsplit::Music_info &track)
 		    "TRACKNUMBER", out.str().c_str()));
 	}
 
+	if (add_replaygain_padding) {
+		// use -10 for gain since this gives the field's maximum
+		// length
+		_append_replaygain_tags(-10.0, 0.0, -10.0, 0.0);
+		unsigned pad_length = _tag.get_length();
+		_delete_replaygain_tags();
+		pad_length -= _tag.get_length();
+
+		// we then must subtract 4 from the pad_length to account for
+		// the padding header
+		// it is possible that the written gain values are as much as
+		// four bytes short, requiring anywhere from 0--4 bytes
+		// padding; the minimum size of padding is 4 bytes (the
+		// METADATA_BLOCK_HEADER length), so we then add 4 bytes
+		//pad_length -= 4; pad_length += 4;
+		_padding.set_length(pad_length);
+	}
+
 	if (_tag.get_num_comments()) {
 		// using the C-style function to avoid stupid libFLAC++ bug
 		FLAC__StreamMetadata *meta_comments =
 		    const_cast<FLAC__StreamMetadata *>(
 		    static_cast<const FLAC__StreamMetadata *>(_tag));
 
-		set_metadata(&meta_comments, 1);
+		FLAC__StreamMetadata *meta_padding =
+		    const_cast<FLAC__StreamMetadata *>(
+		    static_cast<const FLAC__StreamMetadata *>(_padding));
+
+		FLAC__StreamMetadata *meta[] = {meta_comments, meta_padding};
+
+		set_metadata(meta, add_replaygain_padding ? 2 : 1);
 	}
 }
 
