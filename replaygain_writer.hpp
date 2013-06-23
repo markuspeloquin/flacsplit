@@ -68,6 +68,7 @@ public:
 	Replaygain_writer(FILE *);
 	~Replaygain_writer();
 	void add_replaygain(const flacsplit::Replaygain_stats &);
+	bool check_if_tempfile_needed() const;
 	void save();
 
 private:

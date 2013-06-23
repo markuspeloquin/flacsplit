@@ -57,9 +57,10 @@ public:
 		return iter;
 	}
 
-	bool check_if_tempfile_needed(bool use_padding)
+	bool check_if_tempfile_needed(bool use_padding) const
 	{
-		return _chain.check_if_tempfile_needed(use_padding);
+		return const_cast<FLAC::Metadata::Chain &>(
+		    _chain).check_if_tempfile_needed(use_padding);
 	}
 
 	FLAC::Metadata::Chain::Status status()
@@ -214,6 +215,12 @@ flacsplit::Replaygain_writer::add_replaygain(
 	_impl->add_replaygain(gain_stats);
 }
 
+bool
+flacsplit::Replaygain_writer::check_if_tempfile_needed() const
+{
+	return _impl->check_if_tempfile_needed(true);
+}
+
 void
 flacsplit::Replaygain_writer::save()
 {
@@ -263,24 +270,28 @@ flacsplit::append_replaygain_tags(FLAC::Metadata::VorbisComment &comment,
 	std::ostringstream formatter;
 	formatter << std::fixed;
 
-	formatter << std::setprecision(2) << gain_stats.album_gain() << " dB";
+	formatter << std::setprecision(2) << std::showpos
+	    << gain_stats.album_gain() << " dB";
 	std::string album_gain = formatter.str();
 
 	formatter.str("");
-	formatter << std::setprecision(8) << gain_stats.album_peak();
+	formatter << std::setprecision(8) << std::noshowpos
+	    << gain_stats.album_peak();
 	std::string album_peak = formatter.str();
 
 	formatter.str("");
-	formatter << std::setprecision(1) << gain_stats.reference_loudness()
-	    << " dB";
+	formatter << std::setprecision(1) << std::noshowpos
+	    << gain_stats.reference_loudness() << " dB";
 	std::string ref_loudness = formatter.str();
 
 	formatter.str("");
-	formatter << std::setprecision(2) << gain_stats.track_gain() << " dB";
+	formatter << std::setprecision(2) << std::showpos
+	    << gain_stats.track_gain() << " dB";
 	std::string track_gain = formatter.str();
 
 	formatter.str("");
-	formatter << std::setprecision(8) << gain_stats.track_peak();
+	formatter << std::setprecision(8) << std::noshowpos
+	    << gain_stats.track_peak();
 	std::string track_peak = formatter.str();
 
 	comment.append_comment(VorbisComment::Entry(

@@ -610,6 +610,9 @@ once(const std::string &cue_path, const struct options *options)
 
 		Replaygain_writer writer(outfp);
 		writer.add_replaygain(gain_stats[i]);
+		if (writer.check_if_tempfile_needed())
+			std::cerr << prog << ": padding exhausted for `"
+			    << out_paths[i] << "', using temp file\n";
 		writer.save();
 	}
 
