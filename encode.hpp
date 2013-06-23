@@ -15,6 +15,7 @@
 #ifndef ENCODE_HPP
 #define ENCODE_HPP
 
+#include <tr1/cstdint>
 #include <boost/scoped_ptr.hpp>
 
 #include "errors.hpp"
@@ -43,8 +44,8 @@ public:
 		{	return "bad format"; }
 	};
 
-	Encoder(FILE *, const Music_info &track, enum file_format=FF_FLAC)
-	    throw (Bad_format);
+	Encoder(FILE *, const Music_info &track, uint64_t total_samples=0,
+	    enum file_format=FF_FLAC) throw (Bad_format);
 
 	~Encoder() {}
 

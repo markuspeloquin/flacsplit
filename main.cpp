@@ -521,8 +521,7 @@ once(const std::string &cue_path, const struct options *options)
 			throw Unix_error(out.str());
 		}
 
-		boost::shared_ptr<Encoder> encoder(new Encoder(outfp,
-			*track_info[i]));
+		boost::shared_ptr<Encoder> encoder;
 
 		// transcode
 		struct Frame frame;
@@ -535,6 +534,7 @@ once(const std::string &cue_path, const struct options *options)
 			// with FLAC, stream properties like the sample rate
 			// aren't known until after the first seek/process
 			if (!track_samples) {
+
 				double		samples;
 				if (end[i]) {
 					uint64_t frames = end[i] - begin[i];
@@ -549,6 +549,9 @@ once(const std::string &cue_path, const struct options *options)
 				}
 				track_samples = static_cast<uint64_t>(
 				    samples + .5);
+
+				encoder.reset(new Encoder(outfp,
+				    *track_info[i], track_samples));
 
 				rg_analyzer.reset(new replaygain::Analyzer(
 				    decoder->sample_rate()));

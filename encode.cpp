@@ -14,14 +14,20 @@
 
 #include <cassert>
 #include <sstream>
+#include <tr1/cstdint>
+#include <boost/shared_ptr.hpp>
 
 #include <FLAC++/encoder.h>
-#include <boost/shared_ptr.hpp>
 
 #include "encode.hpp"
 #include "replaygain_writer.hpp"
 
 namespace {
+
+// 10 sec at 44.1 kHz; I believe this is the default for flac(1); I don't want
+// to adjust it for each sample rate, since the point of the seekpoints is to
+// save on I/O, so increasing the sample rate should increase the seekpoints
+const unsigned SEEKPOINT_SAMPLES = 441000;
 
 class Flac_encoder :
     public FLAC::Encoder::File,
@@ -38,7 +44,7 @@ public:
 		std::string _msg;
 	};
 
-	Flac_encoder(FILE *fp, const flacsplit::Music_info &);
+	Flac_encoder(FILE *fp, const flacsplit::Music_info &, uint64_t=0);
 	virtual ~Flac_encoder()
 	{
 		if (_init)
@@ -73,8 +79,15 @@ private:
 	}
 	void set_meta(const flacsplit::Music_info &, bool);
 
-	FLAC::Metadata::Padding		_padding;
-	FLAC::Metadata::VorbisComment	_tag;
+	FLAC__StreamMetadata *cast_metadata(FLAC::Metadata::Prototype &meta)
+	{
+		return const_cast<FLAC__StreamMetadata *>(
+		    static_cast<const FLAC__StreamMetadata *>(meta));
+	}
+
+	boost::scoped_ptr<FLAC::Metadata::Padding>	_padding;
+	boost::scoped_ptr<FLAC::Metadata::SeekTable>	_seek_table;
+	FLAC::Metadata::VorbisComment			_tag;
 
 	//std::vector<boost::shared_ptr<FLAC::Metadata::VorbisComment::Entry> >
 	//	_entries;
@@ -82,14 +95,24 @@ private:
 	bool	_init;
 };
 
-Flac_encoder::Flac_encoder(FILE *fp, const flacsplit::Music_info &track) :
+Flac_encoder::Flac_encoder(FILE *fp, const flacsplit::Music_info &track,
+    uint64_t total_samples) :
 	FLAC::Encoder::File(),
 	Basic_encoder(),
+	_padding(),
+	_seek_table(),
+	_tag(),
 	_fp(fp),
 	_init(false)
 {
 	set_compression_level(8);
 	set_do_exhaustive_model_search(true);
+
+	if (total_samples) {
+		_seek_table.reset(new FLAC::Metadata::SeekTable);
+		_seek_table->template_append_spaced_points_by_samples(
+		    SEEKPOINT_SAMPLES, total_samples);
+	}
 	set_meta(track);
 }
 
@@ -172,24 +195,23 @@ Flac_encoder::set_meta(const flacsplit::Music_info &track,
 		// padding; the minimum size of padding is 4 bytes (the
 		// METADATA_BLOCK_HEADER length), so we then add 4 bytes
 		//pad_length -= 4; pad_length += 4;
-		_padding.set_length(pad_length);
+		if (!_padding)
+			_padding.reset(new FLAC::Metadata::Padding);
+		_padding->set_length(pad_length);
 	}
 
 	if (_tag.get_num_comments()) {
+		FLAC__StreamMetadata	*meta[3];
+		size_t			metalen = 0;
+
+		if (_seek_table)
+			meta[metalen++] = cast_metadata(*_seek_table);
+		meta[metalen++] = cast_metadata(_tag);
+		if (add_replaygain_padding)
+			meta[metalen++] = cast_metadata(*_padding);
+
 		// using the C-style function to avoid stupid libFLAC++ bug
-		FLAC__StreamMetadata *meta_comments =
-		    const_cast<FLAC__StreamMetadata *>(
-		    static_cast<const FLAC__StreamMetadata *>(_tag));
-
-		FLAC__StreamMetadata *meta_padding =
-		    const_cast<FLAC__StreamMetadata *>(
-		    static_cast<const FLAC__StreamMetadata *>(_padding));
-
-		FLAC__StreamMetadata *meta[] = {
-		    meta_comments, meta_padding
-		};
-
-		set_metadata(meta, add_replaygain_padding ? 2 : 1);
+		set_metadata(meta, metalen);
 	}
 }
 
@@ -239,9 +261,9 @@ Flac_encoder::tell_callback(FLAC__uint64 *absolute_byte_offset)
 } // end anon
 
 flacsplit::Encoder::Encoder(FILE *fp, const Music_info &track,
-    enum file_format format) throw (Bad_format)
+    uint64_t total_samples, enum file_format format) throw (Bad_format)
 {
 	if (format != FF_FLAC)
 		throw Bad_format();
-	_encoder.reset(new Flac_encoder(fp, track));
+	_encoder.reset(new Flac_encoder(fp, track, total_samples));
 }
