@@ -110,7 +110,8 @@ struct replaygain_ctx;
 
 /** The accumulated value of a set of samples */
 struct replaygain_value {
-	uint32_t value[ANALYZE_SIZE];
+	uint32_t	value[ANALYZE_SIZE];
+	double		peak;
 };
 
 __BEGIN_DECLS
@@ -182,6 +183,13 @@ __INLINE void	replaygain_accum(struct replaygain_value *sum,
  */
 double		replaygain_adjustment(const struct replaygain_value *value);
 
+/** Peak level of all samples.
+ *
+ * \param value	A value calculation
+ * \return	Peak level normalized to [0,1]
+ */
+__INLINE double	replaygain_peak(const struct replaygain_value *value);
+
 
 
 
@@ -197,6 +205,15 @@ replaygain_accum(struct replaygain_value *sum,
 {
 	for (size_t i = 0; i < ANALYZE_SIZE; i++)
 		sum->value[i] += addition->value[i];
+	if (addition->peak > sum->peak)
+		sum->peak = addition->peak;
+}
+
+__INLINE double
+replaygain_peak(const struct replaygain_value *sum)
+{
+	const double MAX = (double)(1 << 15);
+	return sum->peak / MAX;
 }
 
 __END_DECLS

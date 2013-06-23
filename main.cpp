@@ -41,12 +41,9 @@
 #include "encode.hpp"
 #include "errors.hpp"
 #include "gain_analysis.hpp"
-#include "replaygain.hpp"
+#include "replaygain_writer.hpp"
 #include "sanitize.hpp"
 #include "transcode.hpp"
-
-// TODO figure out how to get this into the files
-//#define COMPUTE_REPLAYGAIN
 
 const char *prog;
 
@@ -105,6 +102,45 @@ public:
 
 private:
 	Cd *_cd;
+};
+
+class File_handle {
+public:
+	File_handle() :
+		_fp(0)
+	{}
+	File_handle(FILE *fp) :
+		_fp(fp)
+	{}
+
+	~File_handle()
+	{
+		if (_fp) fclose(_fp);
+	}
+
+	File_handle &operator=(FILE *fp) throw (flacsplit::Unix_error)
+	{
+		close();
+		_fp = fp;
+		return *this;
+	}
+
+	void close() throw (flacsplit::Unix_error)
+	{
+		if (_fp) {
+			if (fclose(_fp) != 0)
+				throw Unix_error("closing file");
+			_fp = 0;
+		}
+	}
+
+	operator FILE *()
+	{	return _fp; }
+	operator bool() const
+	{	return _fp; }
+
+private:
+	FILE *_fp;
 };
 
 template <typename In>
@@ -422,18 +458,19 @@ once(const std::string &cue_path, const struct options *options)
 
 	std::string path;
 	std::string derived_path;
-	FILE *fp = 0;
+	File_handle in_file;
 	boost::scoped_ptr<Decoder> decoder;
 	std::vector<std::string> out_paths;
 
-#ifdef COMPUTE_REPLAYGAIN
 	// for replaygain analysis
 	replaygain::Sample_accum		rg_accum;
 	boost::scoped_ptr<replaygain::Analyzer>	rg_analyzer;
 	boost::scoped_array<double>		rg_samples;
 	double		*double_samples[] = { 0, 0 };
 	unsigned	dimens[] = { 0, 0 };
-#endif
+
+	boost::scoped_array<Replaygain_stats> gain_stats(
+	    new Replaygain_stats[tracks]);
 
 	for (unsigned i = 0; i < tracks; i++) {
 		Track *track = cd_get_track(cd, i+1);
@@ -442,12 +479,12 @@ once(const std::string &cue_path, const struct options *options)
 			cur_path += '/';
 		cur_path += track_get_filename(track);
 
-		if (!fp || cur_path != path) {
+		if (!in_file || cur_path != path) {
 			// switch file
 
 			path = cur_path;
-			fp = find_file(path, derived_path, options->use_flac);
-			if (!fp) {
+			in_file = find_file(path, derived_path, options->use_flac);
+			if (!in_file) {
 				std::cerr << prog << ": open `"
 				    << derived_path
 				    << "' failed: " << strerror(errno)
@@ -458,12 +495,12 @@ once(const std::string &cue_path, const struct options *options)
 			std::cout << "< " << derived_path << '\n';
 
 			try {
-				decoder.reset(new Decoder(derived_path, fp));
+				decoder.reset(new Decoder(derived_path, in_file));
 			} catch (Bad_format) {
 				std::cerr << prog
 				    << ": unknown format in file `"
 				    << derived_path << "'\n";
-				fclose(fp);
+				in_file.close();
 				return false;
 			}
 
@@ -484,13 +521,8 @@ once(const std::string &cue_path, const struct options *options)
 			throw Unix_error(out.str());
 		}
 
-		boost::scoped_ptr<Encoder> encoder;
-		try {
-			encoder.reset(new Encoder(outfp, *track_info[i]));
-		} catch (...) {
-			fclose(outfp);
-			throw;
-		}
+		boost::shared_ptr<Encoder> encoder(new Encoder(outfp,
+			*track_info[i]));
 
 		// transcode
 		struct Frame frame;
@@ -518,10 +550,8 @@ once(const std::string &cue_path, const struct options *options)
 				track_samples = static_cast<uint64_t>(
 				    samples + .5);
 
-#ifdef COMPUTE_REPLAYGAIN
 				rg_analyzer.reset(new replaygain::Analyzer(
 				    decoder->sample_rate()));
-#endif
 			}
 
 			uint64_t remaining = track_samples - samples;
@@ -529,7 +559,6 @@ once(const std::string &cue_path, const struct options *options)
 				frame.samples = remaining;
 			samples += frame.samples;
 
-#ifdef COMPUTE_REPLAYGAIN
 			if (frame.samples > dimens[0] ||
 			    frame.channels > dimens[1]) {
 				// reset the buffer for conversion to double
@@ -544,30 +573,42 @@ once(const std::string &cue_path, const struct options *options)
 			transform_sample_fmt(frame, double_samples);
 			rg_analyzer->add(double_samples[0], double_samples[1],
 			    frame.samples, frame.channels);
-#endif
 
 			encoder->add_frame(frame);
 		} while (samples < track_samples);
 
-#ifdef COMPUTE_REPLAYGAIN
 		replaygain::Sample rg_sample;
 		rg_analyzer->pop(rg_sample);
 		rg_accum += rg_sample;
-		double track_gain = rg_sample.adjustment();
-#endif
+		gain_stats[i].track_gain(rg_sample.adjustment());
+		gain_stats[i].track_peak(rg_sample.peak());
 
 		if (!encoder->finish()) {
 			std::cerr << prog << ": finish() failed\n";
 			return false;
 		}
 	}
+	in_file.close();
 
-#ifdef COMPUTE_REPLAYGAIN
 	double album_gain = rg_accum.adjustment();
-#endif
+	double album_peak = rg_accum.peak();
 
-	std::cout << "> Calculating replay-gain values\n";
-	add_replay_gain(out_paths);
+	for (unsigned i = 0; i < tracks; i++) {
+		gain_stats[i].album_gain(album_gain);
+		gain_stats[i].album_peak(album_peak);
+
+		// I hate these stupid mode strings; "r+b" = O_RDWR, binary
+		File_handle outfp(fopen(out_paths[i].c_str(), "r+b"));
+		if (!outfp) {
+			std::ostringstream out;
+			out << "open `" << out_paths[i] << "' failed";
+			throw Unix_error(out.str());
+		}
+
+		Replaygain_writer writer(outfp);
+		writer.add_replaygain(gain_stats[i]);
+		writer.save();
+	}
 
 	return true;
 }

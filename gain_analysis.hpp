@@ -99,6 +99,11 @@ public:
 		return v;
 	}
 
+	double peak() const
+	{
+		return replaygain_peak(&_value);
+	}
+
 private:
 	friend class Analyzer;
 	friend class Sample_accum;
@@ -158,6 +163,11 @@ public:
 			v = _cached;
 		if (v == GAIN_NOT_ENOUGH_SAMPLES) throw Not_enough_samples();
 		return v;
+	}
+
+	double peak() const
+	{
+		return replaygain_peak(&_sum);
 	}
 
 private:

@@ -113,6 +113,15 @@ struct replaygain_ctx {
 	struct replaygain_value value;
 };
 
+
+static void		filter_butter(const Float_t *, Float_t *, size_t,
+			    const Float_t *);
+static void		filter_yule(const Float_t *, Float_t *, size_t,
+			    const Float_t *);
+static inline Float_t	fsqr(const Float_t);
+static Float_t		peak_value(const Float_t *, size_t);
+
+
 /* for each filter:
  * [0] 48 kHz, [1] 44.1 kHz, [2] 32 kHz,      [3] 24 kHz, [4] 22050 Hz,
  * [5] 16 kHz, [6] 12 kHz,   [7] is 11025 Hz, [8] 8 kHz */
@@ -334,6 +343,20 @@ fsqr(const Float_t d)
 	return d * d;
 }
 
+static Float_t
+peak_value(const Float_t *samples, size_t num_samples)
+{
+	Float_t peak = 0.0;
+	while (num_samples--) {
+		Float_t sample = *samples++;
+		if (peak < sample)
+			peak = sample;
+		else if (peak < -sample)
+			peak = -sample;
+	}
+	return peak;
+}
+
 enum replaygain_status
 replaygain_analyze(struct replaygain_ctx *ctx, const Float_t *lsamples,
     const Float_t *rsamples, size_t num_samples, unsigned channels)
@@ -348,11 +371,23 @@ replaygain_analyze(struct replaygain_ctx *ctx, const Float_t *lsamples,
 	cursamplepos = 0;
 	batchsamples = num_samples;
 
+	double peak = peak_value(lsamples, num_samples);
 	switch (channels) {
-	case  1: rsamples = lsamples;
-	case  2: break;
-	default: return REPLAYGAIN_ERROR;
+	case  1:
+		rsamples = lsamples;
+		break;
+	case  2:
+	{
+		double peak0 = peak_value(rsamples, num_samples);
+		if (peak0 > peak) peak = peak0;
+		break;
 	}
+	default:
+		return REPLAYGAIN_ERROR;
+	}
+
+	if (ctx->value.peak < peak)
+		ctx->value.peak = peak;
 
 	copy_samples = num_samples;
 	if (MAX_ORDER < copy_samples) copy_samples = MAX_ORDER;

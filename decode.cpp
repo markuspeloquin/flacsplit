@@ -301,7 +301,6 @@ Wave_decoder::Wave_decoder(const std::string &path, FILE *fp)
 		sox_close(_fmt);
 		throw;
 	}
-	fclose(fp);
 }
 
 void

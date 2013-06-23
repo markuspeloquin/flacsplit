@@ -10,7 +10,7 @@ OBJS = \
 	errors.o \
 	gain_analysis.o \
 	main.o \
-	replaygain.o \
+	replaygain_writer.o \
 	sanitize.o \
 	transcode.o \
 	libcuefile.a \
@@ -36,6 +36,7 @@ decode.o: decode.cpp \
 encode.o: encode.cpp \
 	encode.hpp \
 	errors.hpp \
+	replaygain_writer.hpp \
 	transcode.hpp
 
 errors.o: errors.cpp \
@@ -52,13 +53,12 @@ main.o: main.cpp \
 	errors.hpp \
 	gain_analysis.h \
 	gain_analysis.hpp \
-	replaygain.hpp \
+	replaygain_writer.hpp \
 	sanitize.hpp \
 	transcode.hpp
 
-replaygain.o: replaygain.cpp \
-	replaygain.hpp \
-	errors.hpp 
+replaygain_writer.o: replaygain_writer.cpp \
+	replaygain_writer.hpp
 
 sanitize.o: sanitize.cpp \
 	sanitize.hpp

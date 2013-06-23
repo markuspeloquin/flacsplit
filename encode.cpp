@@ -13,14 +13,13 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
 #include <cassert>
-#include <iomanip>
 #include <sstream>
 
 #include <FLAC++/encoder.h>
-#include <boost/algorithm/string/predicate.hpp>
 #include <boost/shared_ptr.hpp>
 
 #include "encode.hpp"
+#include "replaygain_writer.hpp"
 
 namespace {
 
@@ -44,8 +43,6 @@ public:
 	{
 		if (_init)
 			finish();
-		else
-			fclose(_fp);
 	}
 
 	virtual void add_frame(const struct flacsplit::Frame &)
@@ -70,9 +67,6 @@ protected:
 	virtual FLAC__StreamEncoderTellStatus tell_callback(FLAC__uint64 *);
 
 private:
-	void _append_replaygain_tags(double track_gain, double track_peak,
-	    double album_gain, double album_peak);
-	void _delete_replaygain_tags();
 	virtual void set_meta(const flacsplit::Music_info &track)
 	{
 		set_meta(track, true);
@@ -119,55 +113,6 @@ Flac_encoder::add_frame(const struct flacsplit::Frame &frame)
 }
 
 void
-Flac_encoder::_append_replaygain_tags(double track_gain, double track_peak,
-    double album_gain, double album_peak)
-{
-	using FLAC::Metadata::VorbisComment;
-
-	std::ostringstream formatter;
-	formatter << std::fixed;
-
-	formatter << std::setprecision(2) << track_gain << " dB";
-	std::string track_gain_str = formatter.str();
-
-	formatter.str("");
-	formatter << std::setprecision(8) << track_peak;
-	std::string track_peak_str = formatter.str();
-
-	formatter.str("");
-	formatter << std::setprecision(2) << album_gain << " dB";
-	std::string album_gain_str = formatter.str();
-
-	formatter.str("");
-	formatter << std::setprecision(8) << album_peak;
-	std::string album_peak_str = formatter.str();
-
-	_tag.append_comment(VorbisComment::Entry(
-	    "REPLAYGAIN_REFERENCE_LOUDNESS", "89.0 dB"));
-	_tag.append_comment(VorbisComment::Entry(
-	    "REPLAYGAIN_TRACK_GAIN", track_gain_str.c_str()));
-	_tag.append_comment(VorbisComment::Entry(
-	    "REPLAYGAIN_TRACK_PEAK", track_peak_str.c_str()));
-	_tag.append_comment(VorbisComment::Entry(
-	    "REPLAYGAIN_ALBUM_GAIN", album_gain_str.c_str()));
-	_tag.append_comment(VorbisComment::Entry(
-	    "REPLAYGAIN_ALBUM_PEAK", album_peak_str.c_str()));
-}
-
-void
-Flac_encoder::_delete_replaygain_tags()
-{
-	using FLAC::Metadata::VorbisComment;
-	// move backwards so the entries don't get shifted on us
-	for (unsigned i = _tag.get_num_comments(); i != 0;) {
-		i--;
-		VorbisComment::Entry entry = _tag.get_comment(i);
-		if (boost::starts_with(entry.get_field_name(), "REPLAYGAIN_"))
-			_tag.delete_comment(i);
-	}
-}
-
-void
 Flac_encoder::set_meta(const flacsplit::Music_info &track,
     bool add_replaygain_padding)
 {
@@ -209,9 +154,15 @@ Flac_encoder::set_meta(const flacsplit::Music_info &track,
 	if (add_replaygain_padding) {
 		// use -10 for gain since this gives the field's maximum
 		// length
-		_append_replaygain_tags(-10.0, 0.0, -10.0, 0.0);
+		flacsplit::Replaygain_stats basic_gain_stats;
+		basic_gain_stats.album_gain(-10.0);
+		basic_gain_stats.album_peak(0.0);
+		basic_gain_stats.track_gain(-10.0);
+		basic_gain_stats.track_peak(0.0);
+
+		flacsplit::append_replaygain_tags(_tag, basic_gain_stats);
 		unsigned pad_length = _tag.get_length();
-		_delete_replaygain_tags();
+		flacsplit::delete_replaygain_tags(_tag);
 		pad_length -= _tag.get_length();
 
 		// we then must subtract 4 from the pad_length to account for
@@ -234,7 +185,9 @@ Flac_encoder::set_meta(const flacsplit::Music_info &track,
 		    const_cast<FLAC__StreamMetadata *>(
 		    static_cast<const FLAC__StreamMetadata *>(_padding));
 
-		FLAC__StreamMetadata *meta[] = {meta_comments, meta_padding};
+		FLAC__StreamMetadata *meta[] = {
+		    meta_comments, meta_padding
+		};
 
 		set_metadata(meta, add_replaygain_padding ? 2 : 1);
 	}
