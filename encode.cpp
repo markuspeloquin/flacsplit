@@ -13,6 +13,9 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
 #include <cassert>
+#if FLACPP_API_VERSION_CURRENT <= 8
+#	include <cerrno>
+#endif
 #include <sstream>
 #include <tr1/cstdint>
 #include <boost/shared_ptr.hpp>
@@ -110,8 +113,17 @@ Flac_encoder::Flac_encoder(FILE *fp, const flacsplit::Music_info &track,
 
 	if (total_samples) {
 		_seek_table.reset(new FLAC::Metadata::SeekTable);
+		// what braindead developer named these fucking things?
+#if FLACPP_API_VERSION_CURRENT <= 8
+		if (!FLAC__metadata_object_seektable_template_append_spaced_points_by_samples(
+		    cast_metadata(*_seek_table), SEEKPOINT_SAMPLES,
+		    total_samples)) {
+			throw flacsplit::Unix_error(ENOMEM);
+		}
+#else
 		_seek_table->template_append_spaced_points_by_samples(
 		    SEEKPOINT_SAMPLES, total_samples);
+#endif
 	}
 	set_meta(track);
 }
