@@ -434,6 +434,7 @@ once(const std::string &cue_path, const struct options *options)
 			begin.push_back(0);
 			end.push_back(pregap_);
 			pregap.push_back(0);
+			begin_ += pregap_;
 			pregap_ = 0;
 		}
 
