@@ -52,11 +52,14 @@ namespace {
 
 struct options {
 	const std::string	*out_dir;
+	bool			hidden_track;
 	bool			switch_index;
 	bool			use_flac;
 
-	options(const std::string *out_dir, bool switch_index, bool use_flac) :
+	options(const std::string *out_dir, bool hidden_track,
+	    bool switch_index, bool use_flac) :
 		out_dir(out_dir),
+		hidden_track(hidden_track),
 		switch_index(switch_index),
 		use_flac(use_flac)
 	{}
@@ -416,14 +419,31 @@ once(const std::string &cue_path, const struct options *options)
 				assert("mixed track types... screw this" &&0);
 		}
 
+		uint32_t begin_ = track_get_start(track);
+		uint32_t end_ = track_get_length(track);
+		if (end_) end_ += begin_;
+		uint32_t pregap_ = track_get_index(track, 1);
+
+		if (!i && pregap_ && options->hidden_track) {
+			// XXX I am calling this track 0, which won't work
+			// right if there are multiple disks and this is not
+			// on the first; because I don't like the concept of
+			// disks
+			track_info.push_back(Music_info::create_hidden(
+			    album_info));
+			begin.push_back(0);
+			end.push_back(pregap_);
+			pregap.push_back(0);
+			pregap_ = 0;
+		}
+
 		track_info.push_back(boost::shared_ptr<Music_info>(
 		    new Music_info(track_get_cdtext(track), album_info,
 		    offset + tracknum++)));
 
-		begin.push_back(track_get_start(track));
-		end.push_back(track_get_length(track));
-		if (end.back()) end.back() += begin.back();
-		pregap.push_back(track_get_index(track, 1));
+		begin.push_back(begin_);
+		end.push_back(end_);
+		pregap.push_back(pregap_);
 	}
 
 	// shift pregaps into preceding tracks
@@ -673,10 +693,11 @@ main(int argc, char **argv)
 	po::options_description visible_desc("Options");
 	visible_desc.add_options()
 	    ("help", "show this message")
+	    ("hidden_track", "interpret initial pregap as a separate track")
 	    ("use_flac,f", "split a FLAC instead of WAV if available")
 	    ("outdir,O", po::value<std::string>(),
 		"parent directory to output to")
-	    ("switch-index,i", "use INDEX 00 for splitting instead of 01 "
+	    ("switch_index,i", "use INDEX 00 for splitting instead of 01 "
 		"(most CD players seek to INDEX 01 instead of INDEX 00 if "
 		"available, but some CDs don't play by those rules)")
 	    ;
@@ -734,10 +755,12 @@ main(int argc, char **argv)
 			out_dir.reset(new std::string(opt.as<std::string>()));
 	}
 
+	bool hidden_track = !var_map["hidden_track"].empty();
 	bool switch_index = !var_map["switch_index"].empty();
 	bool use_flac = !var_map["use_flac"].empty();
 
-	struct options opts(out_dir.get(), switch_index, use_flac);
+	struct options opts(out_dir.get(), hidden_track, switch_index,
+	    use_flac);
 
 	for (std::vector<std::string>::iterator i = cuefiles.begin();
 	    i != cuefiles.end(); ++i)

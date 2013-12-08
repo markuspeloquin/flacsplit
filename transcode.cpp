@@ -19,6 +19,20 @@
 
 #include "transcode.hpp"
 
+flacsplit::Music_info::Music_info() :
+	_parent(0),
+	_track(0)
+{}
+
+boost::shared_ptr<flacsplit::Music_info>
+flacsplit::Music_info::create_hidden(const Music_info &parent)
+{
+	boost::shared_ptr<Music_info> info(new Music_info);
+	info->_parent = &parent;
+	info->_title = "[hidden]";
+	return info;
+}
+
 flacsplit::Music_info::Music_info(const Cdtext *cdtext0) :
 	_parent(0),
 	_track(0)
