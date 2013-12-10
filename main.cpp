@@ -407,8 +407,8 @@ once(const std::string &cue_path, const struct options *options)
 	std::vector<uint32_t> begin;
 	std::vector<uint32_t> end;
 	std::vector<uint32_t> pregap;
+	std::vector<unsigned> track_numbers;
 	unsigned tracks = cd_get_ntrack(cd);
-	unsigned tracknum = 1;
 	for (unsigned i = 0; i < tracks; i++) {
 		Track *track = cd_get_track(cd, i+1);
 		if (track_get_mode(track) != MODE_AUDIO) {
@@ -434,25 +434,27 @@ once(const std::string &cue_path, const struct options *options)
 			begin.push_back(0);
 			end.push_back(pregap_);
 			pregap.push_back(0);
+			track_numbers.push_back(0);
 			begin_ += pregap_;
 			pregap_ = 0;
 		}
 
 		track_info.push_back(boost::shared_ptr<Music_info>(
 		    new Music_info(track_get_cdtext(track), album_info,
-		    offset + tracknum++)));
+		    offset + i + 1)));
 
 		begin.push_back(begin_);
 		end.push_back(end_);
 		pregap.push_back(pregap_);
+		track_numbers.push_back(i + 1);
 	}
 
 	// shift pregaps into preceding tracks
 	if (!options->switch_index)
-		for (unsigned i = 0; i < tracks; i++) {
+		for (unsigned i = 0; i < begin.size(); i++) {
 			if (i)
 				begin[i] += pregap[i];
-			if (i != tracks-1)
+			if (i != begin.size()-1)
 				end[i] += pregap[i+1];
 		}
 
@@ -491,10 +493,12 @@ once(const std::string &cue_path, const struct options *options)
 	unsigned	dimens[] = { 0, 0 };
 
 	boost::scoped_array<Replaygain_stats> gain_stats(
-	    new Replaygain_stats[tracks]);
+	    new Replaygain_stats[begin.size()]);
 
-	for (unsigned i = 0; i < tracks; i++) {
-		Track *track = cd_get_track(cd, i+1);
+	for (unsigned i = 0; i < track_numbers.size(); i++) {
+		unsigned track_number = track_numbers[i];
+		Track *track = track_number ? cd_get_track(cd, track_number) :
+		    cd_get_track(cd, 1);
 		std::string cur_path = cue_dir;
 		if (!cur_path.empty())
 			cur_path += '/';
@@ -504,7 +508,8 @@ once(const std::string &cue_path, const struct options *options)
 			// switch file
 
 			path = cur_path;
-			in_file = find_file(path, derived_path, options->use_flac);
+			in_file = find_file(path, derived_path,
+			    options->use_flac);
 			if (!in_file) {
 				std::cerr << prog << ": open `"
 				    << derived_path
@@ -516,7 +521,8 @@ once(const std::string &cue_path, const struct options *options)
 			std::cout << "< " << derived_path << '\n';
 
 			try {
-				decoder.reset(new Decoder(derived_path, in_file));
+				decoder.reset(new Decoder(derived_path,
+				    in_file));
 			} catch (Bad_format) {
 				std::cerr << prog
 				    << ": unknown format in file `"
