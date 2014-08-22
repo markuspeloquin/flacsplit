@@ -561,7 +561,6 @@ once(const std::string &cue_path, const struct options *options)
 			// with FLAC, stream properties like the sample rate
 			// aren't known until after the first seek/process
 			if (!track_samples) {
-
 				double		samples;
 				if (end[i]) {
 					uint64_t frames = end[i] - begin[i];
@@ -770,8 +769,14 @@ main(int argc, char **argv)
 	    use_flac);
 
 	for (std::vector<std::string>::iterator i = cuefiles.begin();
-	    i != cuefiles.end(); ++i)
-		if (!once(*i, &opts))
+	    i != cuefiles.end(); ++i) {
+		try {
+			if (!once(*i, &opts))
+				return 1;
+		} catch (const std::exception &e) {
+			std::cerr << prog << ": "  << e.what() << '\n';
 			return 1;
+		}
+	}
 	return 0;
 }
