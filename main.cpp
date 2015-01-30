@@ -73,7 +73,8 @@ bool		extension(const std::string &, std::string &, std::string &);
 FILE		*find_file(const std::string &, std::string &, bool);
 std::string	frametime(uint32_t);
 void		get_cue_extra(const std::string &, std::string &out_genre,
-		    std::string &out_date) throw (flacsplit::Unix_error);
+		    std::string &out_date, unsigned &out_offset)
+		    throw (flacsplit::Unix_error);
 void		make_album_path(const flacsplit::Music_info &album,
 		    std::vector<std::string> &, std::string &);
 void		make_track_name(const flacsplit::Music_info &track,
@@ -271,6 +272,9 @@ find_file(const std::string &path, std::string &out_path, bool use_flac)
 std::string
 frametime(uint32_t frames)
 {
+	// get rid of complaint about the function being unused
+	if (0) frametime(0);
+
 	uint16_t seconds = frames / 75;
 	frames -= seconds * 75;
 	uint16_t minutes = seconds / 60;
