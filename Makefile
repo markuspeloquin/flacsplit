@@ -4,6 +4,9 @@ CPPFLAGS += -Ilibcuefile/include
 LDFLAGS += -L/usr/local/lib
 LIBS += -lFLAC -lFLAC++ -lboost_program_options -licuuc -lsox
 
+#CFLAGS += -g -O0
+#CXXFLAGS += -g -O0
+
 OBJS = \
 	decode.o \
 	encode.o \

@@ -535,6 +535,16 @@ once(const std::string &cue_path, const struct options *options)
 				return false;
 			}
 
+			uint64_t last_track_frame =
+			    begin[track_numbers.size()-1];
+			double last_track_sample = last_track_frame *
+			    decoder->sample_rate() / 75.;
+			if (decoder->total_samples() <= last_track_sample) {
+				std::ostringstream eout;
+				eout << "file `" << derived_path
+				    << "' does not contain enough samples";
+				throw Not_enough_samples(eout.str());
+			}
 		}
 
 		std::string out_name;
@@ -574,6 +584,8 @@ once(const std::string &cue_path, const struct options *options)
 					double begin_sample =
 					    static_cast<uint64_t>(begin[i]) *
 					    decoder->sample_rate() / 75.;
+					assert(decoder->total_samples() >
+					    begin_sample);
 					samples = decoder->total_samples() -
 					    begin_sample;
 				}

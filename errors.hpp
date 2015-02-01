@@ -33,9 +33,18 @@ struct Bad_samplefreq : std::exception {
 };
 
 struct Not_enough_samples : public std::exception {
+	Not_enough_samples() :
+		_msg("not enough samples to calculate with")
+	{}
+	Not_enough_samples(const std::string &msg) :
+		_msg(msg)
+	{}
 	const char *what() const throw ()
-	{	return "not enough samples to calculate with"; }
+	{	return _msg.c_str(); }
 	virtual ~Not_enough_samples() throw () {}
+
+private:
+	std::string _msg;
 };
 
 struct Sox_error : std::exception {
