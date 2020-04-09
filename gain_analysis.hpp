@@ -191,6 +191,7 @@ public:
 			throw Bad_samplefreq();
 		case REPLAYGAIN_OK:
 			break;
+		case REPLAYGAIN_ERROR:
 		default:
 			throw std::runtime_error("invalid status");
 		}
