@@ -119,9 +119,9 @@ private:
 class Replaygain_writer_impl : public Metadata_editor {
 public:
 	Replaygain_writer_impl(FILE *fp) : Metadata_editor(fp) {}
-	virtual ~Replaygain_writer_impl() {}
 
 	void add_replaygain(const flacsplit::Replaygain_stats &);
+
 	void save();
 
 private:
@@ -134,46 +134,34 @@ private:
 
 static int
 metadata_editor_close(FLAC__IOHandle handle) {
-	//std::cerr << "close()\n";
-
 	return as_editor(handle)->close_callback();
 }
 
 static int
 metadata_editor_eof(FLAC__IOHandle handle) {
-	//std::cerr << "eof()\n";
-
 	return as_editor(handle)->eof_callback();
 }
 
 static size_t
 metadata_editor_read(void *ptr, size_t size, size_t nmemb,
     FLAC__IOHandle handle) {
-	//std::cerr << "read(buf," << size << ',' << nmemb << ")\n";
-
 	uint8_t *buf = reinterpret_cast<uint8_t *>(ptr);
 	return as_editor(handle)->read_callback(buf, size, nmemb);
 }
 
 static int
 metadata_editor_seek(FLAC__IOHandle handle, FLAC__int64 offset, int whence) {
-	//std::cerr << "seek(" << offset << ',' << whence << ")\n";
-
 	return as_editor(handle)->seek_callback(offset, whence);
 }
 
 static FLAC__int64
 metadata_editor_tell(FLAC__IOHandle handle) {
-	//std::cerr << "tell()\n";
-
 	return as_editor(handle)->tell_callback();
 }
 
 static size_t
 metadata_editor_write(const void *ptr, size_t size, size_t nmemb,
     FLAC__IOHandle handle) {
-	//std::cerr << "write(buf," << size << ',' << nmemb << ")\n";
-
 	const uint8_t *buf = reinterpret_cast<const uint8_t *>(ptr);
 	return as_editor(handle)->write_callback(buf, size, nmemb);
 }

@@ -34,6 +34,7 @@ bool				same_file(FILE *, FILE *);
 class Sox_init {
 public:
 	Sox_init() : _valid(false) {}
+
 	~Sox_init() {
 		if (_valid)
 			sox_quit();
@@ -73,12 +74,7 @@ class Flac_decoder :
     public flacsplit::Basic_decoder {
 public:
 	struct Flac_decode_error : flacsplit::Decode_error {
-		Flac_decode_error(const std::string &msg) :
-			flacsplit::Decode_error(),
-			_msg(msg)
-		{}
-
-		virtual ~Flac_decode_error() noexcept {}
+		Flac_decode_error(const std::string &msg) : _msg(msg) {}
 
 		const char *what() const noexcept override {
 			return _msg.c_str();
@@ -91,8 +87,6 @@ public:
 	//! library takes ownership).
 	//! \throw Flac_decode_error
 	Flac_decoder(FILE *);
-
-	virtual ~Flac_decoder() {}
 
 	//! \throw Flac_decode_error
 	void next_frame(struct flacsplit::Frame &) override;
@@ -140,12 +134,7 @@ private:
 class Wave_decoder : public flacsplit::Basic_decoder {
 public:
 	struct Wave_decode_error : flacsplit::Decode_error {
-		Wave_decode_error(const char *msg) :
-			flacsplit::Decode_error(),
-			_msg(msg)
-		{}
-
-		virtual ~Wave_decode_error() {}
+		Wave_decode_error(const char *msg) : _msg(msg) {}
 
 		const char *what() const noexcept override {
 			return _msg.c_str();
@@ -339,7 +328,7 @@ Wave_decoder::next_frame(struct flacsplit::Frame &frame) {
 		    frame.samples;
 }
 
-enum flacsplit::file_format
+flacsplit::file_format
 get_file_format(FILE *fp) {
 	const char *const RIFF = "RIFF";
 	const char *const WAVE = "WAVE";
@@ -348,14 +337,14 @@ get_file_format(FILE *fp) {
 	char buf[12];
 
 	if (!fread(buf, sizeof(buf), 1, fp))
-		return flacsplit::FF_UNKNOWN;
+		return flacsplit::file_format::UNKNOWN;
 	fseek(fp, -sizeof(buf), SEEK_CUR);
 
 	if (std::equal(buf, buf+4, RIFF) && std::equal(buf+8, buf+12, WAVE))
-		return flacsplit::FF_WAVE;
+		return flacsplit::file_format::WAVE;
 	if (std::equal(buf, buf+4, FLAC))
-		return flacsplit::FF_FLAC;
-	return flacsplit::FF_UNKNOWN;
+		return flacsplit::file_format::FLAC;
+	return flacsplit::file_format::UNKNOWN;
 }
 
 /** Check that two C file pointers reference the same underlying file
@@ -383,16 +372,15 @@ flacsplit::Decoder::Decoder(const std::string &path, FILE *fp,
 	Basic_decoder(),
 	_decoder()
 {
-	if (format == FF_UNKNOWN)
+	if (format == file_format::UNKNOWN)
 		format = get_file_format(fp);
 	switch (format) {
-	case FF_UNKNOWN:
+	case file_format::UNKNOWN:
 		throw Bad_format();
-	case FF_WAVE:
+	case file_format::WAVE:
 		_decoder.reset(new Wave_decoder(path, fp));
 		break;
-	case FF_FLAC:
+	case file_format::FLAC:
 		_decoder.reset(new Flac_decoder(fp));
-		break;
 	}
 }

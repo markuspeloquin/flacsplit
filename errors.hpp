@@ -21,16 +21,12 @@
 namespace flacsplit {
 
 struct Bad_format : std::exception {
-	virtual ~Bad_format() noexcept {}
-
 	const char *what() const noexcept override {
 		return "bad format";
 	}
 };
 
 struct Bad_samplefreq : std::exception {
-	virtual ~Bad_samplefreq() noexcept {}
-
 	const char *what() const noexcept override {
 		return "bad sample frequency";
 	}
@@ -41,11 +37,7 @@ struct Not_enough_samples : public std::exception {
 		_msg("not enough samples to calculate with")
 	{}
 
-	Not_enough_samples(const std::string &msg) :
-		_msg(msg)
-	{}
-
-	virtual ~Not_enough_samples() noexcept {}
+	Not_enough_samples(const std::string &msg) : _msg(msg) {}
 
 	const char *what() const noexcept override {
 		return _msg.c_str();
@@ -56,12 +48,7 @@ private:
 };
 
 struct Sox_error : std::exception {
-	Sox_error(const std::string &msg) :
-		std::exception(),
-		_msg(msg)
-	{}
-
-	virtual ~Sox_error() noexcept {}
+	Sox_error(const std::string &msg) : _msg(msg) {}
 
 	const char *what() const noexcept override {
 		return _msg.c_str();
@@ -74,8 +61,6 @@ struct Unix_error : std::exception {
 	Unix_error(int errnum=-1);
 
 	Unix_error(const std::string &msg, int errnum=-1);
-
-	virtual ~Unix_error() noexcept {}
 
 	const char *what() const noexcept override {
 		return msg.c_str();

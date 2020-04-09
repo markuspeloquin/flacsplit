@@ -24,9 +24,7 @@
 
 namespace flacsplit {
 
-struct Decode_error : std::exception {
-	Decode_error() : std::exception() {}
-};
+struct Decode_error : std::exception {};
 
 class Basic_decoder {
 public:
@@ -50,9 +48,7 @@ class Decoder : public Basic_decoder {
 public:
 	//! \throw Bad_format
 	//! \throw Sox_error
-	Decoder(const std::string &, FILE *, enum file_format=FF_UNKNOWN);
-
-	virtual ~Decoder() {}
+	Decoder(const std::string &, FILE *, file_format=file_format::UNKNOWN);
 
 	//! \throw DecodeError
 	void next_frame(struct Frame &frame) override {

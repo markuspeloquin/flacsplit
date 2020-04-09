@@ -37,12 +37,7 @@ class Flac_encoder :
     public flacsplit::Basic_encoder {
 public:
 	struct Flac_encode_error : flacsplit::Encode_error {
-		Flac_encode_error(const std::string &msg) :
-			flacsplit::Encode_error(),
-			_msg(msg)
-		{}
-
-		virtual ~Flac_encode_error() noexcept {}
+		Flac_encode_error(const std::string &msg) : _msg(msg) {}
 
 		const char *what() const noexcept override {
 			return _msg.c_str();
@@ -272,7 +267,7 @@ Flac_encoder::tell_callback(FLAC__uint64 *absolute_byte_offset) {
 
 flacsplit::Encoder::Encoder(FILE *fp, const Music_info &track,
     uint64_t total_samples, enum file_format format) {
-	if (format != FF_FLAC)
+	if (format != file_format::FLAC)
 		throw Bad_format();
 	_encoder.reset(new Flac_encoder(fp, track, total_samples));
 }

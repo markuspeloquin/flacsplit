@@ -24,7 +24,7 @@ struct Cdtext;
 
 namespace flacsplit {
 
-enum file_format { FF_UNKNOWN, FF_WAVE, FF_FLAC };
+enum class file_format { UNKNOWN, WAVE, FLAC };
 
 struct Frame {
 	const int32_t *const	*data;

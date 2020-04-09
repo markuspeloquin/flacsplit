@@ -23,9 +23,7 @@
 
 namespace flacsplit {
 
-struct Encode_error : std::exception {
-	Encode_error() : std::exception() {}
-};
+struct Encode_error : std::exception {};
 
 class Basic_encoder {
 public:
@@ -42,18 +40,14 @@ public:
 class Encoder : public Basic_encoder {
 public:
 	struct Bad_format : std::exception {
-		virtual ~Bad_format() noexcept {}
-
-		virtual const char *what() const noexcept override {
+		const char *what() const noexcept override {
 			return "bad format";
 		}
 	};
 
 	//! \throw Bad_format
 	Encoder(FILE *, const Music_info &track, uint64_t total_samples=0,
-	    enum file_format=FF_FLAC);
-
-	virtual ~Encoder() {}
+	    file_format=file_format::FLAC);
 
 	//! \throw Encode_error
 	void add_frame(const struct Frame &frame) override {
