@@ -97,8 +97,7 @@ public:
 		return v;
 	}
 
-	double peak() const
-	{
+	double peak() const {
 		return replaygain_peak(&_value);
 	}
 
@@ -115,12 +114,12 @@ private:
 class Sample_accum {
 public:
 	/** Construct and initialize to zero */
-	Sample_accum()
-	{	reset(); }
+	Sample_accum() {
+		reset();
+	}
 
 	/** Reset the sum to zero */
-	void reset()
-	{
+	void reset() {
 		_dirty = true;
 		memset(&_sum, 0, sizeof(_sum));
 	}
@@ -129,15 +128,15 @@ public:
 	 *
 	 * \param value	The value to add
 	 */
-	void add(const Sample &value)
-	{	*this += value; }
+	void add(const Sample &value) {
+		*this += value;
+	}
 
 	/** Combine result of one sample with another
 	 *
 	 * \param value	The value to add
 	 */
-	Sample_accum &operator+=(const Sample &value)
-	{
+	Sample_accum &operator+=(const Sample &value) {
 		replaygain_accum(&_sum, &value._value);
 		return *this;
 	}
@@ -162,8 +161,7 @@ public:
 		return v;
 	}
 
-	double peak() const
-	{
+	double peak() const {
 		return replaygain_peak(&_sum);
 	}
 
@@ -198,8 +196,7 @@ public:
 		}
 	}
 
-	~Analyzer()
-	{
+	~Analyzer() {
 		replaygain_free(_ctx);
 	}
 
@@ -208,8 +205,7 @@ public:
 	 * \param freq	    The frequency to reset to
 	 * \retval false    Bad sample frequency
 	 */
-	bool reset_sample_frequency(unsigned long freq)
-	{
+	bool reset_sample_frequency(unsigned long freq) {
 		return replaygain_reset_frequency(_ctx, freq) ==
 		    REPLAYGAIN_OK;
 	}
@@ -227,8 +223,7 @@ public:
 	 *	event
 	 */
 	bool add(const double *left_samples, const double *right_samples,
-	    size_t num_samples, unsigned num_channels)
-	{
+	    size_t num_samples, unsigned num_channels) {
 		enum replaygain_status	status;
 
 		status = replaygain_analyze(_ctx, left_samples,
@@ -240,8 +235,7 @@ public:
 	 *
 	 * \param[out] out	The accumulated Replaygain value
 	 */
-	void pop(Sample &out)
-	{
+	void pop(Sample &out) {
 		replaygain_pop(_ctx, &out._value);
 	}
 

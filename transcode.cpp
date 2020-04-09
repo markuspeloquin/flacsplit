@@ -26,8 +26,7 @@ flacsplit::Music_info::Music_info() :
 {}
 
 std::shared_ptr<flacsplit::Music_info>
-flacsplit::Music_info::create_hidden(const Music_info &parent)
-{
+flacsplit::Music_info::create_hidden(const Music_info &parent) {
 	auto info = std::shared_ptr<Music_info>();
 	info->_parent = &parent;
 	info->_title = "[hidden]";
@@ -74,8 +73,7 @@ flacsplit::Music_info::Music_info(const Cdtext *cdtext0,
 }
 
 std::string
-flacsplit::iso8859_to_utf8(const std::string &str)
-{
+flacsplit::iso8859_to_utf8(const std::string &str) {
 	const char	*s = str.c_str();
 	int32_t		length = str.size();
 	int32_t		i = 0;

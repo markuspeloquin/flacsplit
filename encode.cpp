@@ -81,14 +81,12 @@ protected:
 	FLAC__StreamEncoderTellStatus tell_callback(FLAC__uint64 *) override;
 
 private:
-	virtual void set_meta(const flacsplit::Music_info &track)
-	{
+	virtual void set_meta(const flacsplit::Music_info &track) {
 		set_meta(track, true);
 	}
 	void set_meta(const flacsplit::Music_info &, bool);
 
-	FLAC__StreamMetadata *cast_metadata(FLAC::Metadata::Prototype &meta)
-	{
+	FLAC__StreamMetadata *cast_metadata(FLAC::Metadata::Prototype &meta) {
 		return const_cast<FLAC__StreamMetadata *>(
 		    static_cast<const FLAC__StreamMetadata *>(meta));
 	}
@@ -152,8 +150,7 @@ Flac_encoder::add_frame(const struct flacsplit::Frame &frame) {
 
 void
 Flac_encoder::set_meta(const flacsplit::Music_info &track,
-    bool add_replaygain_padding)
-{
+    bool add_replaygain_padding) {
 	using FLAC::Metadata::VorbisComment;
 
 	const std::string &album = track.album();
@@ -232,8 +229,7 @@ Flac_encoder::set_meta(const flacsplit::Music_info &track,
 
 #if 0
 FLAC__StreamEncoderReadStatus
-Flac_encoder::read_callback(FLAC__byte *buffer, size_t *bytes)
-{
+Flac_encoder::read_callback(FLAC__byte *buffer, size_t *bytes) {
 	//FLAC__STREAM_ENCODER_READ_STATUS_CONTINUE
 	//FLAC__STREAM_ENCODER_READ_STATUS_END_OF_STREAM
 	//FLAC__STREAM_ENCODER_READ_STATUS_ABORT
@@ -244,16 +240,14 @@ Flac_encoder::read_callback(FLAC__byte *buffer, size_t *bytes)
 
 FLAC__StreamEncoderWriteStatus
 Flac_encoder::write_callback(const FLAC__byte *buffer, size_t bytes,
-    unsigned /*samples*/, unsigned /*current_frame*/)
-{
+    unsigned /*samples*/, unsigned /*current_frame*/) {
 	if (fwrite(buffer, bytes, 1, _fp))
 		return FLAC__STREAM_ENCODER_WRITE_STATUS_OK;
 	return FLAC__STREAM_ENCODER_WRITE_STATUS_FATAL_ERROR;
 }
 
 FLAC__StreamEncoderSeekStatus
-Flac_encoder::seek_callback(FLAC__uint64 absolute_byte_offset)
-{
+Flac_encoder::seek_callback(FLAC__uint64 absolute_byte_offset) {
 	long off = absolute_byte_offset;
 	if (static_cast<FLAC__uint64>(off) !=
 	    absolute_byte_offset) {
@@ -266,8 +260,7 @@ Flac_encoder::seek_callback(FLAC__uint64 absolute_byte_offset)
 }
 
 FLAC__StreamEncoderTellStatus
-Flac_encoder::tell_callback(FLAC__uint64 *absolute_byte_offset)
-{
+Flac_encoder::tell_callback(FLAC__uint64 *absolute_byte_offset) {
 	long off = ftell(_fp);
 	if (off < 0)
 		return FLAC__STREAM_ENCODER_TELL_STATUS_ERROR;

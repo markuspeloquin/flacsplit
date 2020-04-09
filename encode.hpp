@@ -37,16 +37,16 @@ public:
 	virtual void add_frame(const struct Frame &) = 0;
 
 	virtual bool finish() = 0;
-
-	//virtual void set_meta(const Music_info &) = 0;
 };
 
 class Encoder : public Basic_encoder {
 public:
 	struct Bad_format : std::exception {
-		virtual ~Bad_format() throw () {}
-		virtual const char *what() const throw ()
-		{	return "bad format"; }
+		virtual ~Bad_format() noexcept {}
+
+		virtual const char *what() const noexcept override {
+			return "bad format";
+		}
 	};
 
 	//! \throw Bad_format

@@ -31,7 +31,7 @@ struct Bad_format : std::exception {
 struct Bad_samplefreq : std::exception {
 	virtual ~Bad_samplefreq() noexcept {}
 
-	const char *what() const noexcept {
+	const char *what() const noexcept override {
 		return "bad sample frequency";
 	}
 };
@@ -47,7 +47,7 @@ struct Not_enough_samples : public std::exception {
 
 	virtual ~Not_enough_samples() noexcept {}
 
-	const char *what() const noexcept {
+	const char *what() const noexcept override {
 		return _msg.c_str();
 	}
 

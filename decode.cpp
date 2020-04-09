@@ -34,8 +34,7 @@ bool				same_file(FILE *, FILE *);
 class Sox_init {
 public:
 	Sox_init() : _valid(false) {}
-	~Sox_init()
-	{
+	~Sox_init() {
 		if (_valid)
 			sox_quit();
 	}
@@ -227,8 +226,7 @@ Flac_decoder::next_frame(struct flacsplit::Frame &frame) {
 
 FLAC__StreamDecoderWriteStatus
 Flac_decoder::write_callback(const FLAC__Frame *frame,
-    const FLAC__int32 *const *buffer)
-{
+    const FLAC__int32 *const *buffer) {
 	if (!_last_buffer.get())
 		// the number of channels should be constant
 		_last_buffer.reset(new const FLAC__int32 *[
@@ -249,8 +247,7 @@ Flac_decoder::write_callback(const FLAC__Frame *frame,
 }
 
 FLAC__StreamDecoderSeekStatus
-Flac_decoder::seek_callback(FLAC__uint64 absolute_byte_offset)
-{
+Flac_decoder::seek_callback(FLAC__uint64 absolute_byte_offset) {
 	long off = absolute_byte_offset;
 	if (static_cast<FLAC__uint64>(off) != absolute_byte_offset)
 		throw std::runtime_error("bad offset");
@@ -261,8 +258,7 @@ Flac_decoder::seek_callback(FLAC__uint64 absolute_byte_offset)
 }
 
 FLAC__StreamDecoderTellStatus
-Flac_decoder::tell_callback(FLAC__uint64 *absolute_byte_offset)
-{
+Flac_decoder::tell_callback(FLAC__uint64 *absolute_byte_offset) {
 	long off = ftell(_fp);
 	if (off < 0)
 		return FLAC__STREAM_DECODER_TELL_STATUS_ERROR;
@@ -271,8 +267,7 @@ Flac_decoder::tell_callback(FLAC__uint64 *absolute_byte_offset)
 }
 
 FLAC__StreamDecoderLengthStatus
-Flac_decoder::length_callback(FLAC__uint64 *stream_length)
-{
+Flac_decoder::length_callback(FLAC__uint64 *stream_length) {
 	struct stat st;
 	if (fstat(fileno(_fp), &st))
 		return FLAC__STREAM_DECODER_LENGTH_STATUS_ERROR;
@@ -345,8 +340,7 @@ Wave_decoder::next_frame(struct flacsplit::Frame &frame) {
 }
 
 enum flacsplit::file_format
-get_file_format(FILE *fp)
-{
+get_file_format(FILE *fp) {
 	const char *const RIFF = "RIFF";
 	const char *const WAVE = "WAVE";
 	const char *const FLAC = "fLaC";

@@ -81,22 +81,30 @@ void		usage(const boost::program_options::options_description &);
 class Cuetools_cd {
 public:
 	Cuetools_cd() : _cd(nullptr) {}
+
 	Cuetools_cd(const Cd *cd) : _cd(const_cast<Cd *>(cd)) {}
-	~Cuetools_cd()
-	{	if (_cd) cd_delete(_cd); }
-	Cuetools_cd &operator=(const Cd *cd)
-	{
+
+	~Cuetools_cd() {
+		if (_cd) cd_delete(_cd);
+	}
+
+	Cuetools_cd &operator=(const Cd *cd) {
 		if (_cd) cd_delete(_cd);
 		_cd = const_cast<Cd *>(cd);
 		return *this;
 	}
 
-	operator Cd *()
-	{	return _cd; }
-	operator const Cd *()
-	{	return _cd; }
-	operator bool()
-	{	return _cd; }
+	operator Cd *() {
+		return _cd;
+	}
+
+	operator const Cd *() {
+		return _cd;
+	}
+
+	operator bool() {
+		return _cd;
+	}
 
 private:
 	Cd *_cd;
@@ -104,15 +112,11 @@ private:
 
 class File_handle {
 public:
-	File_handle() :
-		_fp(nullptr)
-	{}
-	File_handle(FILE *fp) :
-		_fp(fp)
-	{}
+	File_handle() : _fp(nullptr) {}
 
-	~File_handle()
-	{
+	File_handle(FILE *fp) : _fp(fp) {}
+
+	~File_handle() {
 		if (_fp) fclose(_fp);
 	}
 
@@ -152,7 +156,8 @@ private:
 
 //! \throw flacsplit::Unix_error
 template <typename In>
-void create_dirs(In begin, In end, const std::string *out_dir) {
+void
+create_dirs(In begin, In end, const std::string *out_dir) {
 	std::ostringstream out;
 	bool first = true;
 	while (begin != end) {
@@ -192,8 +197,7 @@ void create_dirs(In begin, In end, const std::string *out_dir) {
 // character uninterpreted (and if '\\' is the last character of 'str', it is
 // copied itself)
 std::string
-escape_cue_string(const std::string &str)
-{
+escape_cue_string(const std::string &str) {
 	if (str.empty()) return "";
 
 	char quote = str[0];
@@ -218,8 +222,7 @@ escape_cue_string(const std::string &str)
 }
 
 bool
-extension(const std::string &str, std::string &base, std::string &ext)
-{
+extension(const std::string &str, std::string &base, std::string &ext) {
 	size_t dot = str.rfind('.');
 	if (dot == std::string::npos)
 		return false;
@@ -229,8 +232,7 @@ extension(const std::string &str, std::string &base, std::string &ext)
 }
 
 FILE *
-find_file(const std::string &path, std::string &out_path, bool use_flac)
-{
+find_file(const std::string &path, std::string &out_path, bool use_flac) {
 	std::string	base;
 	std::string	ext;
 	std::string	guess;
@@ -289,8 +291,9 @@ frametime(uint32_t frames) {
 #endif
 
 //! \throw flacsplit::Unix_error
-void get_cue_extra(const std::string &path,
-    std::string &out_genre, std::string &out_date, unsigned &out_offset) {
+void
+get_cue_extra(const std::string &path, std::string &out_genre,
+    std::string &out_date, unsigned &out_offset) {
 	std::ifstream in(path.c_str());
 	if (!in) {
 		std::ostringstream out;
@@ -347,8 +350,7 @@ void get_cue_extra(const std::string &path,
 
 void
 make_album_path(const flacsplit::Music_info &album,
-    std::vector<std::string> &out_path_vec, std::string &out_path)
-{
+    std::vector<std::string> &out_path_vec, std::string &out_path) {
 	std::vector<std::string> path_vec;
 
 	path_vec.push_back(album.artist());
@@ -367,8 +369,7 @@ make_album_path(const flacsplit::Music_info &album,
 }
 
 void
-make_track_name(const flacsplit::Music_info &track, std::string &name)
-{
+make_track_name(const flacsplit::Music_info &track, std::string &name) {
 	std::ostringstream nameout;
 	nameout << std::setfill('0') << std::setw(2)
 	    << static_cast<int>(track.track())
@@ -377,8 +378,7 @@ make_track_name(const flacsplit::Music_info &track, std::string &name)
 }
 
 bool
-once(const std::string &cue_path, const struct options *options)
-{
+once(const std::string &cue_path, const struct options *options) {
 	using namespace flacsplit;
 
 	std::string cue_dir;
@@ -666,8 +666,7 @@ once(const std::string &cue_path, const struct options *options)
 
 void
 split_path(const std::string &path, std::string &dirname,
-    std::string &basename)
-{
+    std::string &basename) {
 	size_t slash = path.rfind("/");
 	if (slash == 0) {
 		dirname = "/";
@@ -685,8 +684,7 @@ split_path(const std::string &path, std::string &dirname,
 }
 
 void
-transform_sample_fmt(const Frame &frame, double **out)
-{
+transform_sample_fmt(const Frame &frame, double **out) {
 	for (unsigned c = 0; c < frame.channels; c++) {
 		const int32_t	*channel_in = frame.data[c];
 		double		*channel_out = out[c];
@@ -697,8 +695,7 @@ transform_sample_fmt(const Frame &frame, double **out)
 }
 
 void
-usage(const boost::program_options::options_description &desc)
-{
+usage(const boost::program_options::options_description &desc) {
 	std::cout << "Usage: " << prog << " [OPTIONS...] CUESHEET...\n"
 	    << desc;
 }
@@ -707,8 +704,7 @@ usage(const boost::program_options::options_description &desc)
 } // end flacsplit
 
 int
-main(int argc, char **argv)
-{
+main(int argc, char **argv) {
 	using namespace flacsplit;
 
 	namespace po = boost::program_options;

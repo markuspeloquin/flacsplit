@@ -15,44 +15,39 @@ class Replaygain_writer_impl;
 
 class Replaygain_stats {
 public:
-	double album_gain() const
-	{
+	double album_gain() const {
 		return _album_gain;
 	}
-	void album_gain(double album_gain)
-	{
+
+	void album_gain(double album_gain) {
 		_album_gain = album_gain;
 	}
 
-	double album_peak() const
-	{
+	double album_peak() const {
 		return _album_peak;
 	}
-	void album_peak(double album_peak)
-	{
+
+	void album_peak(double album_peak) {
 		_album_peak = album_peak;
 	}
 
-	double reference_loudness() const
-	{
+	double reference_loudness() const {
 		return 89.0;
 	}
 
-	double track_gain() const
-	{
+	double track_gain() const {
 		return _track_gain;
 	}
-	void track_gain(double track_gain)
-	{
+
+	void track_gain(double track_gain) {
 		_track_gain = track_gain;
 	}
 
-	double track_peak() const
-	{
+	double track_peak() const {
 		return _track_peak;
 	}
-	void track_peak(double track_peak)
-	{
+
+	void track_peak(double track_peak) {
 		_track_peak = track_peak;
 	}
 
@@ -66,9 +61,13 @@ private:
 class Replaygain_writer {
 public:
 	Replaygain_writer(FILE *);
+
 	~Replaygain_writer();
+
 	void add_replaygain(const flacsplit::Replaygain_stats &);
+
 	bool check_if_tempfile_needed() const;
+
 	void save();
 
 private:

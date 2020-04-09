@@ -83,8 +83,7 @@ const uint16_t LATIN_MAP_END = LATIN_MAP_BEGIN +
 } // end anon namespace
 
 std::string
-flacsplit::sanitize(const std::string &str)
-{
+flacsplit::sanitize(const std::string &str) {
 	std::vector<size_t>	guessed;
 	std::string		res;
 	const char	*s = str.c_str();

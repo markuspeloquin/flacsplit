@@ -125,11 +125,10 @@ __BEGIN_DECLS
  * \return	The context, which must be passed to
  *	<code>replaygain_free()</code> when finished
  */
-struct replaygain_ctx *
-		replaygain_alloc(unsigned long samplefreq,
-		    enum replaygain_status *out_status);
+struct replaygain_ctx	*replaygain_alloc(unsigned long samplefreq,
+			    enum replaygain_status *out_status);
 
-__INLINE void	replaygain_free(struct replaygain_ctx *ctx);
+__INLINE void		replaygain_free(struct replaygain_ctx *ctx);
 
 /** Reset the sampling frequency
  *
@@ -138,9 +137,8 @@ __INLINE void	replaygain_free(struct replaygain_ctx *ctx);
  * \retval REPLAYGAIN_ERR_SAMPLEFREQ
  * \retval REPLAYGAIN_OK
  */
-enum replaygain_status
-		replaygain_reset_frequency(struct replaygain_ctx *ctx,
-		    unsigned long freq);
+enum replaygain_status	replaygain_reset_frequency(struct replaygain_ctx *ctx,
+			    unsigned long freq);
 
 /** Accumulate samples into a calculation
  *
@@ -155,54 +153,53 @@ enum replaygain_status
  * \retval REPLAYGAIN_ERROR	Bad number of channels or some exceptional
  *	error
  */
-enum replaygain_status
-		replaygain_analyze(struct replaygain_ctx *ctx,
-		    const double *left_samples, const double *right_samples,
-		    size_t num_samples, unsigned num_channels);
+enum replaygain_status	replaygain_analyze(struct replaygain_ctx *ctx,
+			    const double *left_samples,
+			    const double *right_samples, size_t num_samples,
+			    unsigned num_channels);
 
 /** Return current calculation, reset context
  *
  * \param ctx	Analyzing context
  * \param[out] out	The accumulated Replaygain sample
  */
-void		replaygain_pop(struct replaygain_ctx *ctx,
-		    struct replaygain_value *out);
+void			replaygain_pop(struct replaygain_ctx *ctx,
+			    struct replaygain_value *out);
 
 /** Combine result of one sample with another
  *
  * \param sum	The accumulated value
  * \param addition	The value to add to <code>sum</code>
  */
-__INLINE void	replaygain_accum(struct replaygain_value *sum,
-		    const struct replaygain_value *addition);
+__INLINE void		replaygain_accum(struct replaygain_value *sum,
+			    const struct replaygain_value *addition);
 
 /** Decibal adjustment for a sample
  *
  * \param value	A value calculation
  * \return	How many decibals to adjust by
  */
-double		replaygain_adjustment(const struct replaygain_value *value);
+double			replaygain_adjustment(
+			    const struct replaygain_value *value);
 
 /** Peak level of all samples.
  *
  * \param value	A value calculation
  * \return	Peak level normalized to [0,1]
  */
-__INLINE double	replaygain_peak(const struct replaygain_value *value);
+__INLINE double		replaygain_peak(const struct replaygain_value *value);
 
 
 
 
 __INLINE void
-replaygain_free(struct replaygain_ctx *ctx)
-{
+replaygain_free(struct replaygain_ctx *ctx) {
 	free(ctx);
 }
 
 __INLINE void
 replaygain_accum(struct replaygain_value *sum,
-    const struct replaygain_value *addition)
-{
+    const struct replaygain_value *addition) {
 	for (size_t i = 0; i < ANALYZE_SIZE; i++)
 		sum->value[i] += addition->value[i];
 	if (addition->peak > sum->peak)
@@ -210,8 +207,7 @@ replaygain_accum(struct replaygain_value *sum,
 }
 
 __INLINE double
-replaygain_peak(const struct replaygain_value *sum)
-{
+replaygain_peak(const struct replaygain_value *sum) {
 	const double MAX = (double)(1 << 15);
 	return sum->peak / MAX;
 }

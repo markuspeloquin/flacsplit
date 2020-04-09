@@ -18,8 +18,7 @@ namespace flacsplit {
 namespace {
 
 inline flacsplit::Metadata_editor *
-as_editor(FLAC__IOHandle handle)
-{
+as_editor(FLAC__IOHandle handle) {
 	return reinterpret_cast<flacsplit::Metadata_editor *>(handle);
 }
 
@@ -48,47 +47,39 @@ public:
 
 	virtual ~Metadata_editor() {}
 
-	std::unique_ptr<FLAC::Metadata::Iterator> iterator()
-	{
+	std::unique_ptr<FLAC::Metadata::Iterator> iterator() {
 		auto iter = std::make_unique<FLAC::Metadata::Iterator>();
 		iter->init(_chain);
 		return iter;
 	}
 
-	bool check_if_tempfile_needed(bool use_padding) const
-	{
+	bool check_if_tempfile_needed(bool use_padding) const {
 		return const_cast<FLAC::Metadata::Chain &>(
 		    _chain).check_if_tempfile_needed(use_padding);
 	}
 
-	FLAC::Metadata::Chain::Status status()
-	{
+	FLAC::Metadata::Chain::Status status() {
 		return _chain.status();
 	}
 
-	bool valid() const
-	{
+	bool valid() const {
 		return _chain.is_valid();
 	}
 
-	bool write(bool use_padding)
-	{
+	bool write(bool use_padding) {
 		return _chain.write(use_padding, this, _callbacks);
 	}
 
-	virtual size_t read_callback(uint8_t *buf, size_t size, size_t nmemb)
-	{
+	virtual size_t read_callback(uint8_t *buf, size_t size, size_t nmemb) {
 		return fread(buf, size, nmemb, _fp);
 	}
 
 	virtual size_t write_callback(const uint8_t *buf, size_t size,
-	    size_t nmemb)
-	{
+	    size_t nmemb) {
 		return fwrite(buf, size, nmemb, _fp);
 	}
 
-	virtual int seek_callback(off_t offset, int whence)
-	{
+	virtual int seek_callback(off_t offset, int whence) {
 		long loffset = offset;
 		if (loffset != offset)
 			throw std::runtime_error("bad narrow cast");
@@ -96,24 +87,20 @@ public:
 		return fseek(_fp, offset, whence);
 	}
 
-	virtual off_t tell_callback() const
-	{
+	virtual off_t tell_callback() const {
 		return ftell(const_cast<FILE *>(_fp));
 	}
 
-	virtual int eof_callback() const
-	{
+	virtual int eof_callback() const {
 		return feof(const_cast<FILE *>(_fp));
 	}
 
-	virtual int close_callback()
-	{
+	virtual int close_callback() {
 		return 0;
 	}
 
 private:
-	static ::FLAC__IOCallbacks make_callbacks()
-	{
+	static ::FLAC__IOCallbacks make_callbacks() {
 		::FLAC__IOCallbacks callbacks;
 		callbacks.close = metadata_editor_close;
 		callbacks.eof = metadata_editor_eof;
@@ -146,16 +133,14 @@ private:
 
 
 static int
-metadata_editor_close(FLAC__IOHandle handle)
-{
+metadata_editor_close(FLAC__IOHandle handle) {
 	//std::cerr << "close()\n";
 
 	return as_editor(handle)->close_callback();
 }
 
 static int
-metadata_editor_eof(FLAC__IOHandle handle)
-{
+metadata_editor_eof(FLAC__IOHandle handle) {
 	//std::cerr << "eof()\n";
 
 	return as_editor(handle)->eof_callback();
@@ -163,8 +148,7 @@ metadata_editor_eof(FLAC__IOHandle handle)
 
 static size_t
 metadata_editor_read(void *ptr, size_t size, size_t nmemb,
-    FLAC__IOHandle handle)
-{
+    FLAC__IOHandle handle) {
 	//std::cerr << "read(buf," << size << ',' << nmemb << ")\n";
 
 	uint8_t *buf = reinterpret_cast<uint8_t *>(ptr);
@@ -172,26 +156,22 @@ metadata_editor_read(void *ptr, size_t size, size_t nmemb,
 }
 
 static int
-metadata_editor_seek(FLAC__IOHandle handle,
-    FLAC__int64 offset, int whence)
-{
+metadata_editor_seek(FLAC__IOHandle handle, FLAC__int64 offset, int whence) {
 	//std::cerr << "seek(" << offset << ',' << whence << ")\n";
 
 	return as_editor(handle)->seek_callback(offset, whence);
 }
 
 static FLAC__int64
-metadata_editor_tell(FLAC__IOHandle handle)
-{
+metadata_editor_tell(FLAC__IOHandle handle) {
 	//std::cerr << "tell()\n";
 
 	return as_editor(handle)->tell_callback();
 }
 
 static size_t
-metadata_editor_write(const void *ptr, size_t size,
-    size_t nmemb, FLAC__IOHandle handle)
-{
+metadata_editor_write(const void *ptr, size_t size, size_t nmemb,
+    FLAC__IOHandle handle) {
 	//std::cerr << "write(buf," << size << ',' << nmemb << ")\n";
 
 	const uint8_t *buf = reinterpret_cast<const uint8_t *>(ptr);
@@ -204,33 +184,28 @@ flacsplit::Replaygain_writer::Replaygain_writer(FILE *fp) :
 	_impl(new Replaygain_writer_impl(fp))
 {}
 
-flacsplit::Replaygain_writer::~Replaygain_writer()
-{}
+flacsplit::Replaygain_writer::~Replaygain_writer() {}
 
 void
 flacsplit::Replaygain_writer::add_replaygain(
-    const flacsplit::Replaygain_stats &gain_stats)
-{
+    const flacsplit::Replaygain_stats &gain_stats) {
 	_impl->add_replaygain(gain_stats);
 }
 
 bool
-flacsplit::Replaygain_writer::check_if_tempfile_needed() const
-{
+flacsplit::Replaygain_writer::check_if_tempfile_needed() const {
 	return _impl->check_if_tempfile_needed(true);
 }
 
 void
-flacsplit::Replaygain_writer::save()
-{
+flacsplit::Replaygain_writer::save() {
 	_impl->save();
 }
 
 
 
 FLAC::Metadata::VorbisComment *
-flacsplit::Replaygain_writer_impl::find_comment()
-{
+flacsplit::Replaygain_writer_impl::find_comment() {
 	auto iter = iterator();
 	do {
 		FLAC::Metadata::VorbisComment *comment =
@@ -244,8 +219,7 @@ flacsplit::Replaygain_writer_impl::find_comment()
 
 inline void
 flacsplit::Replaygain_writer_impl::add_replaygain(
-    const flacsplit::Replaygain_stats &gain_stats)
-{
+    const flacsplit::Replaygain_stats &gain_stats) {
 	FLAC::Metadata::VorbisComment *comment = find_comment();
 	if (!comment) {
 		throw std::runtime_error(
@@ -256,8 +230,7 @@ flacsplit::Replaygain_writer_impl::add_replaygain(
 }
 
 inline void
-flacsplit::Replaygain_writer_impl::save()
-{
+flacsplit::Replaygain_writer_impl::save() {
 	write(true);
 }
 
@@ -265,8 +238,7 @@ flacsplit::Replaygain_writer_impl::save()
 
 void
 flacsplit::append_replaygain_tags(FLAC::Metadata::VorbisComment &comment,
-    const flacsplit::Replaygain_stats &gain_stats)
-{
+    const flacsplit::Replaygain_stats &gain_stats) {
 	using FLAC::Metadata::VorbisComment;
 
 	std::ostringstream formatter;
@@ -309,8 +281,7 @@ flacsplit::append_replaygain_tags(FLAC::Metadata::VorbisComment &comment,
 }
 
 void
-flacsplit::delete_replaygain_tags(FLAC::Metadata::VorbisComment &comment)
-{
+flacsplit::delete_replaygain_tags(FLAC::Metadata::VorbisComment &comment) {
 	using FLAC::Metadata::VorbisComment;
 	// move backwards so the entries don't get shifted on us
 	for (unsigned i = comment.get_num_comments(); i != 0;) {

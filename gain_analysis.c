@@ -234,8 +234,7 @@ static const Float_t ABButter[9][2*BUTTER_ORDER + 1] = {
 
 static void
 filter_yule(const Float_t *input, Float_t *output, size_t nSamples,
-    const Float_t *kernel)
-{
+    const Float_t *kernel) {
 	while (nSamples--) {
 		/* 1e-10 is a hack to avoid slowdown because of denormals */
 		*output = 1e-10              + input[  0] * kernel[ 0] -
@@ -256,8 +255,7 @@ filter_yule(const Float_t *input, Float_t *output, size_t nSamples,
 
 static void
 filter_butter(const Float_t *input, Float_t *output, size_t nSamples,
-    const Float_t *kernel)
-{
+    const Float_t *kernel) {
 	while (nSamples--) {
 		*output = input[0] * kernel[0] -
 		    output[-1] * kernel[1] + input[-1] * kernel[2] -
@@ -268,8 +266,7 @@ filter_butter(const Float_t *input, Float_t *output, size_t nSamples,
 }
 
 enum replaygain_status
-replaygain_reset_frequency(struct replaygain_ctx *ctx, unsigned long freq)
-{
+replaygain_reset_frequency(struct replaygain_ctx *ctx, unsigned long freq) {
 	/* zero out initial values */
 	memset(ctx->linprebuf, 0, sizeof(Float_t) * MAX_ORDER);
 	memset(ctx->rinprebuf, 0, sizeof(Float_t) * MAX_ORDER);
@@ -307,8 +304,7 @@ replaygain_reset_frequency(struct replaygain_ctx *ctx, unsigned long freq)
 }
 
 struct replaygain_ctx *
-replaygain_alloc(unsigned long freq, enum replaygain_status *out_status)
-{
+replaygain_alloc(unsigned long freq, enum replaygain_status *out_status) {
 	struct replaygain_ctx	*ctx;
 	enum replaygain_status	status;
 
@@ -338,14 +334,12 @@ replaygain_alloc(unsigned long freq, enum replaygain_status *out_status)
 }
 
 static inline Float_t
-fsqr(const Float_t d)
-{
+fsqr(const Float_t d) {
 	return d * d;
 }
 
 static Float_t
-peak_value(const Float_t *samples, size_t num_samples)
-{
+peak_value(const Float_t *samples, size_t num_samples) {
 	Float_t peak = 0.0;
 	while (num_samples--) {
 		Float_t sample = *samples++;
@@ -359,8 +353,7 @@ peak_value(const Float_t *samples, size_t num_samples)
 
 enum replaygain_status
 replaygain_analyze(struct replaygain_ctx *ctx, const Float_t *lsamples,
-    const Float_t *rsamples, size_t num_samples, unsigned channels)
-{
+    const Float_t *rsamples, size_t num_samples, unsigned channels) {
 	unsigned long	batchsamples;
 	unsigned long	cursamplepos;
 	size_t		copy_samples;
@@ -531,8 +524,7 @@ replaygain_analyze(struct replaygain_ctx *ctx, const Float_t *lsamples,
 }
 
 Float_t
-replaygain_adjustment(const struct replaygain_value *out)
-{
+replaygain_adjustment(const struct replaygain_value *out) {
 	uint32_t	elems;
 	int32_t		upper;
 	size_t		i;
@@ -555,8 +547,7 @@ replaygain_adjustment(const struct replaygain_value *out)
 }
 
 void
-replaygain_pop(struct replaygain_ctx *ctx, struct replaygain_value *out)
-{
+replaygain_pop(struct replaygain_ctx *ctx, struct replaygain_value *out) {
 	memcpy(out, &ctx->value, sizeof(ctx->value));
 
 	memset(&ctx->value, 0, sizeof(ctx->value));

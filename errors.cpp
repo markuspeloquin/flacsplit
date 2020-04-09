@@ -18,8 +18,7 @@
 
 #include "errors.hpp"
 
-flacsplit::Unix_error::Unix_error(int errnum)
-{
+flacsplit::Unix_error::Unix_error(int errnum) {
 	this->errnum = errnum < 0 ? errno : errnum;
 	msg = strerror(this->errnum);
 }
