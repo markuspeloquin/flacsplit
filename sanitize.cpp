@@ -12,9 +12,9 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
-#include <cassert>
+#include <cstdint>
+#include <stdexcept>
 #include <vector>
-#include <tr1/cstdint>
 
 #include <unicode/utf8.h>
 
@@ -32,7 +32,7 @@ const char *LATIN_MAP[] = {
 	"DH",
 	"N",
 	"O", "O", "O", "O", "O",
-	0,
+	nullptr,
 	"O",
 	"U", "U", "U", "U",
 	"Y",
@@ -46,7 +46,7 @@ const char *LATIN_MAP[] = {
 	"dh",
 	"n",
 	"o", "o", "o", "o", "o",
-	0,
+	nullptr,
 	"o",
 	"u", "u", "u", "u",
 	"y",
@@ -98,8 +98,8 @@ flacsplit::sanitize(const std::string &str)
 	while (i < length) {
 		int32_t	c;
 		U8_NEXT(s, i, length, c);
-		// strings should be pre-encoded in utf8
-		assert(c > 0);
+		if (c <= 0)
+			throw std::runtime_error("not pre-encoded as utf8");
 
 		if (isdigit(c) || c == 0x20 ||
 		    (0x41 <= c && c < 0x5b) ||

@@ -64,7 +64,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <exception>
-#include <stdexcept>
 
 #include "errors.hpp"
 #include "gain_analysis.h"
@@ -183,7 +182,7 @@ public:
 	 * \throw Bad_samplefreq
 	 */
 	Analyzer(unsigned long freq) :
-		_ctx(0)
+		_ctx(nullptr)
 	{
 		enum replaygain_status	status;
 		_ctx = replaygain_alloc(freq, &status);
@@ -195,7 +194,7 @@ public:
 		case REPLAYGAIN_OK:
 			break;
 		default:
-			assert(0);
+			throw std::runtime_error("invalid status");
 		}
 	}
 

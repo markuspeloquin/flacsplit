@@ -1,4 +1,3 @@
-#include <cassert>
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
@@ -91,7 +90,8 @@ public:
 	virtual int seek_callback(off_t offset, int whence)
 	{
 		long loffset = offset;
-		assert(loffset == offset);
+		if (loffset != offset)
+			throw std::runtime_error("bad narrow cast");
 
 		return fseek(_fp, offset, whence);
 	}
@@ -239,7 +239,7 @@ flacsplit::Replaygain_writer_impl::find_comment()
 		if (comment)
 			return comment;
 	} while (iter->next());
-	return 0;
+	return nullptr;
 }
 
 inline void
@@ -247,7 +247,10 @@ flacsplit::Replaygain_writer_impl::add_replaygain(
     const flacsplit::Replaygain_stats &gain_stats)
 {
 	FLAC::Metadata::VorbisComment *comment = find_comment();
-	assert(comment && "Vorbis comment should have been present");
+	if (!comment) {
+		throw std::runtime_error(
+		    "Vorbis comment should have been present");
+	}
 
 	append_replaygain_tags(*comment, gain_stats);
 }

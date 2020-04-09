@@ -16,8 +16,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <cassert>
 #include <cerrno>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -26,7 +26,6 @@
 #include <memory>
 #include <sstream>
 #include <vector>
-#include <tr1/cstdint>
 
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/parsers.hpp>
@@ -81,7 +80,7 @@ void		usage(const boost::program_options::options_description &);
 
 class Cuetools_cd {
 public:
-	Cuetools_cd() : _cd(0) {}
+	Cuetools_cd() : _cd(nullptr) {}
 	Cuetools_cd(const Cd *cd) : _cd(const_cast<Cd *>(cd)) {}
 	~Cuetools_cd()
 	{	if (_cd) cd_delete(_cd); }
@@ -266,18 +265,15 @@ find_file(const std::string &path, std::string &out_path, bool use_flac)
 		}
 	}
 
-	assert(errno == ENOENT);
+	if (errno != ENOENT)
+		throw std::runtime_error("bad errno");
 	out_path = path;
-	return 0;
+	return nullptr;
 }
 
 #if 0
 std::string
-frametime(uint32_t frames)
-{
-	// get rid of complaint about the function being unused
-	if (0) frametime(0);
-
+frametime(uint32_t frames) {
 	uint16_t seconds = frames / 75;
 	frames -= seconds * 75;
 	uint16_t minutes = seconds / 60;
@@ -420,9 +416,11 @@ once(const std::string &cue_path, const struct options *options)
 		if (track_get_mode(track) != MODE_AUDIO) {
 			if (i == tracks-1)
 				break;
-			else
+			else {
 				// this is possible, but I won't handle it
-				assert("mixed track types... screw this" &&0);
+				throw std::runtime_error(
+				    "mixed track types... screw this");
+			}
 		}
 
 		uint32_t begin_ = track_get_start(track);
@@ -494,7 +492,7 @@ once(const std::string &cue_path, const struct options *options)
 	replaygain::Sample_accum		rg_accum;
 	std::unique_ptr<replaygain::Analyzer>	rg_analyzer;
 	std::unique_ptr<double>			rg_samples;
-	double		*double_samples[] = { 0, 0 };
+	double		*double_samples[] = { nullptr, nullptr };
 	unsigned	dimens[] = { 0, 0 };
 
 	std::unique_ptr<Replaygain_stats> gain_stats(
@@ -586,8 +584,12 @@ once(const std::string &cue_path, const struct options *options)
 					double begin_sample =
 					    static_cast<uint64_t>(begin[i]) *
 					    decoder->sample_rate() / 75.;
-					assert(decoder->total_samples() >
-					    begin_sample);
+					if (decoder->total_samples() <=
+					    begin_sample) {
+						throw std::runtime_error(
+						    "beginning offset isn't "
+						    "where it was expected");
+					}
 					samples = decoder->total_samples() -
 					    begin_sample;
 				}

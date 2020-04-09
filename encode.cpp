@@ -12,13 +12,13 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
-#include <cassert>
 #if FLACPP_API_VERSION_CURRENT <= 8
 #	include <cerrno>
 #endif
+#include <cstdint>
 #include <memory>
 #include <sstream>
-#include <tr1/cstdint>
+#include <stdexcept>
 
 #include <FLAC++/encoder.h>
 
@@ -255,8 +255,10 @@ FLAC__StreamEncoderSeekStatus
 Flac_encoder::seek_callback(FLAC__uint64 absolute_byte_offset)
 {
 	long off = absolute_byte_offset;
-	assert(static_cast<FLAC__uint64>(off) ==
-	    absolute_byte_offset);
+	if (static_cast<FLAC__uint64>(off) !=
+	    absolute_byte_offset) {
+		throw std::runtime_error("bad offset");
+	}
 
 	return fseek(_fp, off, SEEK_SET) ?
 	    FLAC__STREAM_ENCODER_SEEK_STATUS_ERROR :

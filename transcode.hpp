@@ -15,10 +15,10 @@
 #ifndef TRANSCODE_HPP
 #define TRANSCODE_HPP
 
+#include <cstdint>
 #include <cstdio>
 #include <memory>
 #include <string>
-#include <tr1/cstdint>
 
 struct Cdtext;
 

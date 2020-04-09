@@ -21,7 +21,7 @@
 #include "transcode.hpp"
 
 flacsplit::Music_info::Music_info() :
-	_parent(0),
+	_parent(nullptr),
 	_track(0)
 {}
 
@@ -35,7 +35,7 @@ flacsplit::Music_info::create_hidden(const Music_info &parent)
 }
 
 flacsplit::Music_info::Music_info(const Cdtext *cdtext0) :
-	_parent(0),
+	_parent(nullptr),
 	_track(0)
 {
 	Cdtext *cdtext = const_cast<Cdtext *>(cdtext0);

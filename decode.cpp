@@ -159,6 +159,7 @@ public:
 	Wave_decoder(const std::string &, FILE *);
 
 	virtual ~Wave_decoder() noexcept {
+		// TODO figure out if this closes the file
 		sox_close(_fmt);
 	}
 
@@ -242,7 +243,7 @@ Flac_decoder::write_callback(const FLAC__Frame *frame,
 	_last_frame = frame;
 	std::copy(buffer, buffer + frame->header.channels,
 	    _last_buffer.get());
-	_last_status = 0;
+	_last_status = nullptr;
 	_frame_retrieved = false;
 	return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
@@ -285,7 +286,7 @@ Wave_decoder::Wave_decoder(const std::string &path, FILE *fp) :
 	_transp()
 {
 	Sox_init::init();
-	if (!(_fmt = sox_open_read(path.c_str(), 0, 0, 0)))
+	if (!(_fmt = sox_open_read(path.c_str(), nullptr, nullptr, nullptr)))
 		throw flacsplit::Sox_error("sox_open_read() error");
 
 	try {
