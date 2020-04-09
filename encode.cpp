@@ -16,9 +16,9 @@
 #if FLACPP_API_VERSION_CURRENT <= 8
 #	include <cerrno>
 #endif
+#include <memory>
 #include <sstream>
 #include <tr1/cstdint>
-#include <boost/shared_ptr.hpp>
 
 #include <FLAC++/encoder.h>
 
@@ -41,39 +41,44 @@ public:
 			flacsplit::Encode_error(),
 			_msg(msg)
 		{}
-		virtual ~Flac_encode_error() throw () {}
-		virtual const char *what() const throw ()
-		{	return _msg.c_str(); }
+
+		virtual ~Flac_encode_error() noexcept {}
+
+		const char *what() const noexcept override {
+			return _msg.c_str();
+		}
+
 		std::string _msg;
 	};
 
 	Flac_encoder(FILE *fp, const flacsplit::Music_info &, uint64_t=0);
-	virtual ~Flac_encoder()
-	{
+
+	virtual ~Flac_encoder() {
 		if (_init)
 			finish();
 	}
 
-	virtual void add_frame(const struct flacsplit::Frame &)
-	    throw (Flac_encode_error);
+	//! \throw Flac_encode_error
+	void add_frame(const struct flacsplit::Frame &) override;
 
-	virtual bool finish()
-	{
-		return FLAC::Encoder::File::finish();
+	bool finish() override {
+		bool result = FLAC::Encoder::File::finish();
+		_init = false;
+		return result;
 	}
 
 protected:
 #if 0
-	virtual FLAC__StreamEncoderReadStatus read_callback(FLAC__byte *,
-	    size_t *);
+	FLAC__StreamEncoderReadStatus read_callback(FLAC__byte *,
+	    size_t *) override;
 #endif
 
-	virtual FLAC__StreamEncoderWriteStatus write_callback(
-	    const FLAC__byte *, size_t, unsigned, unsigned);
+	FLAC__StreamEncoderWriteStatus write_callback(
+	    const FLAC__byte *, size_t, unsigned, unsigned) override;
 
-	virtual FLAC__StreamEncoderSeekStatus seek_callback(FLAC__uint64);
+	FLAC__StreamEncoderSeekStatus seek_callback(FLAC__uint64) override;
 
-	virtual FLAC__StreamEncoderTellStatus tell_callback(FLAC__uint64 *);
+	FLAC__StreamEncoderTellStatus tell_callback(FLAC__uint64 *) override;
 
 private:
 	virtual void set_meta(const flacsplit::Music_info &track)
@@ -88,11 +93,11 @@ private:
 		    static_cast<const FLAC__StreamMetadata *>(meta));
 	}
 
-	boost::scoped_ptr<FLAC::Metadata::Padding>	_padding;
-	boost::scoped_ptr<FLAC::Metadata::SeekTable>	_seek_table;
+	std::unique_ptr<FLAC::Metadata::Padding>	_padding;
+	std::unique_ptr<FLAC::Metadata::SeekTable>	_seek_table;
 	FLAC::Metadata::VorbisComment			_tag;
 
-	//std::vector<boost::shared_ptr<FLAC::Metadata::VorbisComment::Entry> >
+	//std::vector<std::shared_ptr<FLAC::Metadata::VorbisComment::Entry>>
 	//	_entries;
 	FILE	*_fp;
 	bool	_init;
@@ -129,9 +134,7 @@ Flac_encoder::Flac_encoder(FILE *fp, const flacsplit::Music_info &track,
 }
 
 void
-Flac_encoder::add_frame(const struct flacsplit::Frame &frame)
-    throw (Flac_encode_error)
-{
+Flac_encoder::add_frame(const struct flacsplit::Frame &frame) {
 	if (!_init) {
 		FLAC__StreamEncoderInitStatus status;
 
@@ -273,8 +276,7 @@ Flac_encoder::tell_callback(FLAC__uint64 *absolute_byte_offset)
 } // end anon
 
 flacsplit::Encoder::Encoder(FILE *fp, const Music_info &track,
-    uint64_t total_samples, enum file_format format) throw (Bad_format)
-{
+    uint64_t total_samples, enum file_format format) {
 	if (format != FF_FLAC)
 		throw Bad_format();
 	_encoder.reset(new Flac_encoder(fp, track, total_samples));

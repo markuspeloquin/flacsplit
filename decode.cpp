@@ -17,8 +17,7 @@
 #include <unistd.h>
 
 #include <algorithm>
-
-#include <boost/scoped_array.hpp>
+#include <memory>
 
 #include <FLAC++/decoder.h>
 #include <sox.h>
@@ -29,9 +28,8 @@ namespace {
 
 const unsigned FRAMES_PER_SEC = 75;
 
-enum flacsplit::file_format
-		get_file_format(FILE *);
-bool		same_file(FILE *, FILE *) throw (flacsplit::Unix_error);
+enum flacsplit::file_format	get_file_format(FILE *);
+bool				same_file(FILE *, FILE *);
 
 class Sox_init {
 public:
@@ -42,8 +40,8 @@ public:
 			sox_quit();
 	}
 
-	static void init() throw (flacsplit::Sox_error)
-	{
+	//! \throw flacsplit::Sox_error
+	static void init() {
 		if (!_instance._valid)
 			_instance.do_init();
 	}
@@ -52,8 +50,8 @@ private:
 	Sox_init(const Sox_init &) {}
 	void operator=(const Sox_init &) {}
 
-	void do_init() throw (flacsplit::Sox_error)
-	{
+	//! \throw flacsplit::Sox_error
+	void do_init() {
 		_valid = true;
 		if (sox_init() != SOX_SUCCESS)
 			_valid = false;
@@ -80,58 +78,61 @@ public:
 			flacsplit::Decode_error(),
 			_msg(msg)
 		{}
-		virtual ~Flac_decode_error() throw () {}
-		virtual const char *what() const throw ()
-		{	return _msg.c_str(); }
+
+		virtual ~Flac_decode_error() noexcept {}
+
+		const char *what() const noexcept override {
+			return _msg.c_str();
+		}
+
 		std::string _msg;
 	};
 
-	Flac_decoder(FILE *fp) throw (Flac_decode_error);
+	//! Note that this takes ownership of the file (or rather, the FLAC
+	//! library takes ownership).
+	//! \throw Flac_decode_error
+	Flac_decoder(FILE *);
+
 	virtual ~Flac_decoder() {}
 
-	virtual void next_frame(struct flacsplit::Frame &)
-	    throw (Flac_decode_error);
+	//! \throw Flac_decode_error
+	void next_frame(struct flacsplit::Frame &) override;
 
-	virtual void seek(uint64_t sample) throw ()
-	{
+	void seek(uint64_t sample) override {
 		seek_absolute(sample);
 	}
 
-	virtual unsigned sample_rate() const
-	{
+	unsigned sample_rate() const override {
 		return get_sample_rate();
 	}
 
-	virtual uint64_t total_samples() const
-	{
+	uint64_t total_samples() const override {
 		return get_total_samples();
 	}
 
 protected:
-	virtual FLAC__StreamDecoderWriteStatus write_callback(
-	    const FLAC__Frame *, const FLAC__int32 *const *);
+	FLAC__StreamDecoderWriteStatus write_callback(
+	    const FLAC__Frame *, const FLAC__int32 *const *) override;
 
-	virtual FLAC__StreamDecoderSeekStatus seek_callback(FLAC__uint64);
+	FLAC__StreamDecoderSeekStatus seek_callback(FLAC__uint64) override;
 
-	virtual FLAC__StreamDecoderTellStatus tell_callback(FLAC__uint64 *);
+	FLAC__StreamDecoderTellStatus tell_callback(FLAC__uint64 *) override;
 
-	virtual FLAC__StreamDecoderLengthStatus length_callback(
-	    FLAC__uint64 *);
+	FLAC__StreamDecoderLengthStatus length_callback(FLAC__uint64 *)
+	    override;
 
-	virtual bool eof_callback()
-	{
+	bool eof_callback() override {
 		return feof(_fp);
 	}
 
-	virtual void error_callback(FLAC__StreamDecoderErrorStatus status)
-	{
+	void error_callback(FLAC__StreamDecoderErrorStatus status) override {
 		_last_status = FLAC__StreamDecoderErrorStatusString[status];
 	}
 
 private:
 	FILE				*_fp;
 	const FLAC__Frame		*_last_frame;
-	boost::scoped_array<const FLAC__int32 *>
+	std::unique_ptr<const FLAC__int32 *>
 					_last_buffer;
 	const char			*_last_status;
 	bool				_frame_retrieved;
@@ -144,58 +145,60 @@ public:
 			flacsplit::Decode_error(),
 			_msg(msg)
 		{}
-		virtual ~Wave_decode_error() throw () {}
-		virtual const char *what() const throw ()
-		{	return _msg.c_str(); }
+
+		virtual ~Wave_decode_error() {}
+
+		const char *what() const noexcept override {
+			return _msg.c_str();
+		}
+
 		std::string _msg;
 	};
 
-	Wave_decoder(const std::string &, FILE *)
-	    throw (flacsplit::Sox_error);
-	virtual ~Wave_decoder()
-	{
+	//! \throw flacsplit::Sox_error
+	Wave_decoder(const std::string &, FILE *);
+
+	virtual ~Wave_decoder() noexcept {
 		sox_close(_fmt);
 	}
 
-	virtual void next_frame(struct flacsplit::Frame &)
-	    throw (Wave_decode_error);
+	//! \throw Wave_decode_error
+	void next_frame(struct flacsplit::Frame &) override;
 
-	virtual void seek(uint64_t sample) throw (Wave_decode_error)
-	{
+	//! \throw Wave_decode_error
+	void seek(uint64_t sample) override {
 		sample *= _fmt->signal.channels;
 		if (sox_seek(_fmt, sample, SOX_SEEK_SET) != SOX_SUCCESS)
 			throw Wave_decode_error("sox_seek() error");
 	}
 
-	virtual unsigned sample_rate() const
-	{
+	unsigned sample_rate() const override {
 		return _fmt->signal.rate;
 	}
 
-	virtual uint64_t total_samples() const
-	{
+	uint64_t total_samples() const override {
 		// a 32-bit size_t (sox_signalinfo_t::length) is big enough
 		// for 2-channel 44.1 kHz for 13.5 hours
 		return _fmt->signal.length / _fmt->signal.channels;
 	}
 
 private:
-	boost::scoped_array<sox_sample_t>	_samples;
-	boost::scoped_array<int32_t>		_transp;
-	boost::scoped_array<int32_t *>		_transp_ptrs;
+	std::unique_ptr<sox_sample_t>	_samples;
+	std::unique_ptr<int32_t>	_transp;
+	std::unique_ptr<int32_t *>	_transp_ptrs;
 	sox_format_t	*_fmt;
 	size_t		_samples_len;
 };
 
 Sox_init Sox_init::_instance;
 
-Flac_decoder::Flac_decoder(FILE *fp) throw (Flac_decode_error) :
+Flac_decoder::Flac_decoder(FILE *fp) :
 	FLAC::Decoder::File(),
 	Basic_decoder(),
 	_fp(fp),
-	_last_frame(0),
-	_last_buffer(0),
-	_last_status(0),
+	_last_frame(nullptr),
+	_last_buffer(),
+	_last_status(nullptr),
 	_frame_retrieved(false)
 {
 	FLAC__StreamDecoderInitStatus status;
@@ -206,9 +209,7 @@ Flac_decoder::Flac_decoder(FILE *fp) throw (Flac_decode_error) :
 }
 
 void
-Flac_decoder::next_frame(struct flacsplit::Frame &frame)
-    throw (Flac_decode_error)
-{
+Flac_decoder::next_frame(struct flacsplit::Frame &frame) {
 	// a seek will trigger a call to write_callback(), so don't process
 	// the next frame if it hasn't been seen yet here
 	if (!_last_frame || _frame_retrieved)
@@ -250,8 +251,8 @@ FLAC__StreamDecoderSeekStatus
 Flac_decoder::seek_callback(FLAC__uint64 absolute_byte_offset)
 {
 	long off = absolute_byte_offset;
-	assert(static_cast<FLAC__uint64>(off) ==
-	    absolute_byte_offset);
+	if (static_cast<FLAC__uint64>(off) != absolute_byte_offset)
+		throw std::runtime_error("bad offset");
 
 	return fseek(_fp, off, SEEK_SET) ?
 	    FLAC__STREAM_DECODER_SEEK_STATUS_ERROR :
@@ -278,8 +279,7 @@ Flac_decoder::length_callback(FLAC__uint64 *stream_length)
 	return FLAC__STREAM_DECODER_LENGTH_STATUS_OK;
 }
 
-Wave_decoder::Wave_decoder(const std::string &path, FILE *fp)
-    throw (flacsplit::Sox_error) :
+Wave_decoder::Wave_decoder(const std::string &path, FILE *fp) :
 	Basic_decoder(),
 	_samples(),
 	_transp()
@@ -290,7 +290,8 @@ Wave_decoder::Wave_decoder(const std::string &path, FILE *fp)
 
 	try {
 		// XXX sox-14.4.0 has sox_format_t::fp declared as void*
-		assert(same_file(fp, reinterpret_cast<FILE *>(_fmt->fp)));
+		if (!same_file(fp, reinterpret_cast<FILE *>(_fmt->fp)))
+			  throw std::runtime_error("file has moved?");
 		_samples_len = _fmt->signal.channels * _fmt->signal.rate /
 		    FRAMES_PER_SEC;
 		_samples.reset(new sox_sample_t[_samples_len]);
@@ -304,9 +305,7 @@ Wave_decoder::Wave_decoder(const std::string &path, FILE *fp)
 }
 
 void
-Wave_decoder::next_frame(struct flacsplit::Frame &frame)
-    throw (Wave_decode_error)
-{
+Wave_decoder::next_frame(struct flacsplit::Frame &frame) {
 	size_t samples;
 	samples = sox_read(_fmt, _samples.get(), _samples_len);
 	if (samples < _samples_len)
@@ -314,7 +313,8 @@ Wave_decoder::next_frame(struct flacsplit::Frame &frame)
 
 	frame.data = _transp_ptrs.get();
 	frame.channels = _fmt->signal.channels;
-	assert(!(samples % frame.channels));
+	if (samples % frame.channels)
+		throw std::runtime_error("bad number of samples");
 	frame.samples = samples / frame.channels;
 	frame.rate = _fmt->signal.rate;
 
@@ -327,18 +327,19 @@ Wave_decoder::next_frame(struct flacsplit::Frame &frame)
 			SOX_SAMPLE_LOCALS;
 			unsigned clips = 0;
 			int32_t samp = SOX_SAMPLE_TO_SIGNED_16BIT(
-			    _samples[i], clips);
-			assert(!clips);
-			_transp[j] = samp;
+			    _samples.get()[i], clips);
+			if (clips)
+				throw std::runtime_error("should not clip");
+			_transp.get()[j] = samp;
 			i++;
 			j += frame.samples;
 		}
 	}
 
 	// make 2d array to return
-	_transp_ptrs[0] = _transp.get();
+	_transp_ptrs.get()[0] = _transp.get();
 	for (size_t channel = 1; channel < frame.channels; channel++)
-		_transp_ptrs[channel] = _transp_ptrs[channel-1] +
+		_transp_ptrs.get()[channel] = _transp_ptrs.get()[channel-1] +
 		    frame.samples;
 }
 
@@ -364,13 +365,12 @@ get_file_format(FILE *fp)
 
 /** Check that two C file pointers reference the same underlying file
  * (according to the device and inode).
- * \throws flacsplit::Unix_error if there is a problem calling fstat(2) on an
+ * \throw flacsplit::Unix_error if there is a problem calling fstat(2) on an
  *	underlying file descriptor
  * \return whether they are the same
  */
 bool
-same_file(FILE *a, FILE *b) throw (flacsplit::Unix_error)
-{
+same_file(FILE *a, FILE *b) {
 	struct stat st_a;
 	struct stat st_b;
 
@@ -384,7 +384,7 @@ same_file(FILE *a, FILE *b) throw (flacsplit::Unix_error)
 } // end anon
 
 flacsplit::Decoder::Decoder(const std::string &path, FILE *fp,
-    enum file_format format) throw (Bad_format, Sox_error) :
+    enum file_format format) :
 	Basic_decoder(),
 	_decoder()
 {

@@ -13,6 +13,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
 #include <iostream>
+#include <memory>
 
 #include <cuetools/cuefile.h>
 #include <unicode/utf8.h>
@@ -24,10 +25,10 @@ flacsplit::Music_info::Music_info() :
 	_track(0)
 {}
 
-boost::shared_ptr<flacsplit::Music_info>
+std::shared_ptr<flacsplit::Music_info>
 flacsplit::Music_info::create_hidden(const Music_info &parent)
 {
-	boost::shared_ptr<Music_info> info(new Music_info);
+	auto info = std::shared_ptr<Music_info>();
 	info->_parent = &parent;
 	info->_title = "[hidden]";
 	return info;

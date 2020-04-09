@@ -21,7 +21,7 @@
  *	double			r_samples[4096];
  *	multigain::Sample_accum	sample_accum;
  *
- *	std::auto_ptr<multigain::Analyzer>	rg;
+ *	std::unique_ptr<multigain::Analyzer>	rg;
  *
  *	try {
  *		rg.reset(new multigain::Analyzer(44100));
@@ -86,8 +86,7 @@ public:
 	 * \return	The adjustment
 	 * \throw Not_enough_samples	...
 	 */
-	double adjustment() const throw (Not_enough_samples)
-	{
+	double adjustment() const {
 		double	v;
 		if (_dirty) {
 			v = replaygain_adjustment(&_value);
@@ -152,8 +151,7 @@ public:
 	 * \return	The adjustment
 	 * \throw Not_enough_samples	...
 	 */
-	double adjustment() const throw (Not_enough_samples)
-	{
+	double adjustment() const {
 		double	v;
 		if (_dirty) {
 			v = replaygain_adjustment(&_sum);
@@ -182,8 +180,9 @@ public:
 	/** Construct the analyzer object
 	 *
 	 * \param samplefreq	The input sample frequency
+	 * \throw Bad_samplefreq
 	 */
-	Analyzer(unsigned long freq) throw (Bad_samplefreq) :
+	Analyzer(unsigned long freq) :
 		_ctx(0)
 	{
 		enum replaygain_status	status;

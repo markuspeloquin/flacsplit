@@ -16,9 +16,8 @@
 #define DECODE_HPP
 
 #include <cstdio>
+#include <memory>
 #include <string>
-
-#include <boost/scoped_ptr.hpp>
 
 #include "errors.hpp"
 #include "transcode.hpp"
@@ -31,33 +30,42 @@ struct Decode_error : std::exception {
 
 class Basic_decoder {
 public:
-	Basic_decoder() throw (Decode_error) {}
-	virtual ~Basic_decoder() {}
-	virtual void next_frame(struct Frame &) throw (Decode_error) = 0;
-	virtual void seek(uint64_t sample) throw (Decode_error) = 0;
+	//! \throw DecodeError
+	Basic_decoder() noexcept(false) {}
+
+	virtual ~Basic_decoder() noexcept {}
+
+	//! \throw DecodeError
+	virtual void next_frame(struct Frame &) = 0;
+
+	//! \throw DecodeError
+	virtual void seek(uint64_t sample) = 0;
+
 	virtual unsigned sample_rate() const = 0;
+
 	virtual uint64_t total_samples() const = 0;
 };
 
 class Decoder : public Basic_decoder {
 public:
-	Decoder(const std::string &, FILE *, enum file_format=FF_UNKNOWN)
-	    throw (Bad_format, Sox_error);
+	//! \throw Bad_format
+	//! \throw Sox_error
+	Decoder(const std::string &, FILE *, enum file_format=FF_UNKNOWN);
 
-	~Decoder() {}
+	virtual ~Decoder() {}
 
-	void next_frame(struct Frame &frame) throw (Decode_error)
-	{
+	//! \throw DecodeError
+	void next_frame(struct Frame &frame) override {
 		_decoder->next_frame(frame);
 	}
 
-	void seek(uint64_t sample) throw (Decode_error)
-	{
+	//! \throw DecodeError
+	void seek(uint64_t sample) override {
 		_decoder->seek(sample);
 	}
 
-	void seek_frame(uint64_t frame) throw (Decode_error)
-	{
+	//! \throw DecodeError
+	void seek_frame(uint64_t frame) {
 		// sample rates aren't always divisible by 3*5*5 = 75, e.g.
 		// 32 kHz, which MP3 supports
 
@@ -68,18 +76,16 @@ public:
 		//seek(_decoder->sample_rate() * frame / 75);
 	}
 
-	unsigned sample_rate() const
-	{
+	unsigned sample_rate() const override {
 		return _decoder->sample_rate();
 	}
 
-	virtual uint64_t total_samples() const
-	{
+	uint64_t total_samples() const override {
 		return _decoder->total_samples();
 	}
 
 private:
-	boost::scoped_ptr<Basic_decoder>	_decoder;
+	std::unique_ptr<Basic_decoder>	_decoder;
 };
 
 }

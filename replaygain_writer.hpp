@@ -1,7 +1,7 @@
 #ifndef FLACSPLIT_REPLAYGAIN_WRITER_HPP
 #define FLACSPLIT_REPLAYGAIN_WRITER_HPP
 
-#include <boost/scoped_ptr.hpp>
+#include <memory>
 
 namespace FLAC {
 	namespace Metadata {
@@ -72,7 +72,7 @@ public:
 	void save();
 
 private:
-	boost::scoped_ptr<Replaygain_writer_impl> _impl;
+	std::unique_ptr<Replaygain_writer_impl> _impl;
 };
 
 void	append_replaygain_tags(FLAC::Metadata::VorbisComment &comment,

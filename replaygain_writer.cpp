@@ -49,10 +49,9 @@ public:
 
 	virtual ~Metadata_editor() {}
 
-	std::auto_ptr<FLAC::Metadata::Iterator> iterator()
+	std::unique_ptr<FLAC::Metadata::Iterator> iterator()
 	{
-		std::auto_ptr<FLAC::Metadata::Iterator> iter(
-		    new FLAC::Metadata::Iterator);
+		auto iter = std::make_unique<FLAC::Metadata::Iterator>();
 		iter->init(_chain);
 		return iter;
 	}
@@ -232,14 +231,14 @@ flacsplit::Replaygain_writer::save()
 FLAC::Metadata::VorbisComment *
 flacsplit::Replaygain_writer_impl::find_comment()
 {
-	std::auto_ptr<FLAC::Metadata::Iterator> i = iterator();
+	auto iter = iterator();
 	do {
 		FLAC::Metadata::VorbisComment *comment =
 		    dynamic_cast<FLAC::Metadata::VorbisComment *>(
-		    i->get_block());
+		    iter->get_block());
 		if (comment)
 			return comment;
-	} while (i->next());
+	} while (iter->next());
 	return 0;
 }
 

@@ -16,10 +16,9 @@
 #define TRANSCODE_HPP
 
 #include <cstdio>
+#include <memory>
 #include <string>
 #include <tr1/cstdint>
-
-#include <boost/shared_ptr.hpp>
 
 struct Cdtext;
 
@@ -42,7 +41,7 @@ public:
 	Music_info(const Cdtext *cdtext, const Music_info &parent,
 	    uint8_t track);
 
-	static boost::shared_ptr<Music_info> create_hidden(
+	static std::shared_ptr<Music_info> create_hidden(
 	    const Music_info &parent);
 
 	const std::string &album() const

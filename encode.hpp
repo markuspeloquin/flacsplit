@@ -15,8 +15,8 @@
 #ifndef ENCODE_HPP
 #define ENCODE_HPP
 
-#include <tr1/cstdint>
-#include <boost/scoped_ptr.hpp>
+#include <cstdint>
+#include <memory>
 
 #include "errors.hpp"
 #include "transcode.hpp"
@@ -30,13 +30,18 @@ struct Encode_error : std::exception {
 class Basic_encoder {
 public:
 	Basic_encoder() {}
+
 	virtual ~Basic_encoder() {}
-	virtual void add_frame(const struct Frame &) throw (Encode_error) = 0;
+
+	//! \throw Encode_error
+	virtual void add_frame(const struct Frame &) = 0;
+
 	virtual bool finish() = 0;
-	virtual void set_meta(const Music_info &) = 0;
+
+	//virtual void set_meta(const Music_info &) = 0;
 };
 
-class Encoder {
+class Encoder : public Basic_encoder {
 public:
 	struct Bad_format : std::exception {
 		virtual ~Bad_format() throw () {}
@@ -44,23 +49,23 @@ public:
 		{	return "bad format"; }
 	};
 
+	//! \throw Bad_format
 	Encoder(FILE *, const Music_info &track, uint64_t total_samples=0,
-	    enum file_format=FF_FLAC) throw (Bad_format);
+	    enum file_format=FF_FLAC);
 
-	~Encoder() {}
+	virtual ~Encoder() {}
 
-	void add_frame(const struct Frame &frame) throw (Encode_error)
-	{
+	//! \throw Encode_error
+	void add_frame(const struct Frame &frame) override {
 		_encoder->add_frame(frame);
 	}
 
-	bool finish()
-	{
+	bool finish() override {
 		return _encoder->finish();
 	}
 
 private:
-	boost::scoped_ptr<Basic_encoder>	_encoder;
+	std::unique_ptr<Basic_encoder>	_encoder;
 };
 
 }

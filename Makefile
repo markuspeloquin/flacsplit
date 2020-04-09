@@ -1,5 +1,5 @@
-CFLAGS += -Wall -W -O2 -std=c99 -pedantic
-CXXFLAGS += -Wall -W -O2
+CFLAGS += -Wall -W -O3 -std=c11 -pedantic
+CXXFLAGS += -Wall -W -O3 -std=c++17
 CPPFLAGS += -Ilibcuefile/include
 LDFLAGS += -L/usr/local/lib
 LIBS += -lFLAC -lFLAC++ -lboost_program_options -licuuc -lsox

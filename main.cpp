@@ -23,6 +23,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <vector>
 #include <tr1/cstdint>
@@ -31,9 +32,6 @@
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/positional_options.hpp>
 #include <boost/program_options/variables_map.hpp>
-#include <boost/scoped_array.hpp>
-#include <boost/scoped_ptr.hpp>
-#include <boost/shared_ptr.hpp>
 #include <cuetools/cuefile.h>
 #include <unicode/utf8.h>
 
@@ -66,15 +64,12 @@ struct options {
 };
 
 template <typename In>
-void		create_dirs(In begin, In end, const std::string *)
-		    throw (flacsplit::Unix_error);
+void		create_dirs(In begin, In end, const std::string *);
 std::string	escape_cue_string(const std::string &);
 bool		extension(const std::string &, std::string &, std::string &);
 FILE		*find_file(const std::string &, std::string &, bool);
-std::string	frametime(uint32_t);
 void		get_cue_extra(const std::string &, std::string &out_genre,
-		    std::string &out_date, unsigned &out_offset)
-		    throw (flacsplit::Unix_error);
+		    std::string &out_date, unsigned &out_offset);
 void		make_album_path(const flacsplit::Music_info &album,
 		    std::vector<std::string> &, std::string &);
 void		make_track_name(const flacsplit::Music_info &track,
@@ -111,7 +106,7 @@ private:
 class File_handle {
 public:
 	File_handle() :
-		_fp(0)
+		_fp(nullptr)
 	{}
 	File_handle(FILE *fp) :
 		_fp(fp)
@@ -122,36 +117,43 @@ public:
 		if (_fp) fclose(_fp);
 	}
 
-	File_handle &operator=(FILE *fp) throw (flacsplit::Unix_error)
-	{
+	//! \throw flacsplit::Unix_error
+	File_handle &operator=(FILE *fp) {
 		close();
 		_fp = fp;
 		return *this;
 	}
 
-	void close() throw (flacsplit::Unix_error)
-	{
+	//! \throw flacsplit::Unix_error
+	void close() {
 		if (_fp) {
 			if (fclose(_fp) != 0)
 				throw Unix_error("closing file");
-			_fp = 0;
+			_fp = nullptr;
 		}
 	}
 
-	operator FILE *()
-	{	return _fp; }
-	operator bool() const
-	{	return _fp; }
+	FILE *release() {
+		FILE *fp = _fp;
+		_fp = nullptr;
+		return fp;
+	}
+
+	operator FILE *() {
+		return _fp;
+	}
+
+	operator bool() const {
+		return _fp;
+	}
 
 private:
 	FILE *_fp;
 };
 
+//! \throw flacsplit::Unix_error
 template <typename In>
-void
-create_dirs(In begin, In end, const std::string *out_dir)
-    throw (flacsplit::Unix_error)
-{
+void create_dirs(In begin, In end, const std::string *out_dir) {
 	std::ostringstream out;
 	bool first = true;
 	while (begin != end) {
@@ -269,6 +271,7 @@ find_file(const std::string &path, std::string &out_path, bool use_flac)
 	return 0;
 }
 
+#if 0
 std::string
 frametime(uint32_t frames)
 {
@@ -287,12 +290,11 @@ frametime(uint32_t frames)
 	    << std::setw(2) << frames;
 	return out.str();
 }
+#endif
 
-void
-get_cue_extra(const std::string &path,
-    std::string &out_genre, std::string &out_date, unsigned &out_offset)
-    throw (flacsplit::Unix_error)
-{
+//! \throw flacsplit::Unix_error
+void get_cue_extra(const std::string &path,
+    std::string &out_genre, std::string &out_date, unsigned &out_offset) {
 	std::ifstream in(path.c_str());
 	if (!in) {
 		std::ostringstream out;
@@ -407,7 +409,7 @@ once(const std::string &cue_path, const struct options *options)
 		album_info.genre(genre);
 	album_info.date(date);
 
-	std::vector<boost::shared_ptr<Music_info> > track_info;
+	std::vector<std::shared_ptr<Music_info>> track_info;
 	std::vector<uint32_t> begin;
 	std::vector<uint32_t> end;
 	std::vector<uint32_t> pregap;
@@ -443,9 +445,9 @@ once(const std::string &cue_path, const struct options *options)
 			pregap_ = 0;
 		}
 
-		track_info.push_back(boost::shared_ptr<Music_info>(
-		    new Music_info(track_get_cdtext(track), album_info,
-		    offset + i + 1)));
+		track_info.push_back(std::make_shared<Music_info>(
+		    track_get_cdtext(track), album_info,
+		    offset + i + 1));
 
 		begin.push_back(begin_);
 		end.push_back(end_);
@@ -485,18 +487,17 @@ once(const std::string &cue_path, const struct options *options)
 
 	std::string path;
 	std::string derived_path;
-	File_handle in_file;
-	boost::scoped_ptr<Decoder> decoder;
+	std::unique_ptr<Decoder> decoder;
 	std::vector<std::string> out_paths;
 
 	// for replaygain analysis
 	replaygain::Sample_accum		rg_accum;
-	boost::scoped_ptr<replaygain::Analyzer>	rg_analyzer;
-	boost::scoped_array<double>		rg_samples;
+	std::unique_ptr<replaygain::Analyzer>	rg_analyzer;
+	std::unique_ptr<double>			rg_samples;
 	double		*double_samples[] = { 0, 0 };
 	unsigned	dimens[] = { 0, 0 };
 
-	boost::scoped_array<Replaygain_stats> gain_stats(
+	std::unique_ptr<Replaygain_stats> gain_stats(
 	    new Replaygain_stats[begin.size()]);
 
 	for (unsigned i = 0; i < track_numbers.size(); i++) {
@@ -508,11 +509,11 @@ once(const std::string &cue_path, const struct options *options)
 			cur_path += '/';
 		cur_path += track_get_filename(track);
 
-		if (!in_file || cur_path != path) {
+		if (!decoder || cur_path != path) {
 			// switch file
 
 			path = cur_path;
-			in_file = find_file(path, derived_path,
+			File_handle in_file = find_file(path, derived_path,
 			    options->use_flac);
 			if (!in_file) {
 				std::cerr << prog << ": open `"
@@ -527,7 +528,8 @@ once(const std::string &cue_path, const struct options *options)
 			try {
 				decoder.reset(new Decoder(derived_path,
 				    in_file));
-			} catch (Bad_format) {
+				in_file.release();
+			} catch (const Bad_format &) {
 				std::cerr << prog
 				    << ": unknown format in file `"
 				    << derived_path << "'\n";
@@ -562,7 +564,7 @@ once(const std::string &cue_path, const struct options *options)
 			throw Unix_error(out.str());
 		}
 
-		boost::shared_ptr<Encoder> encoder;
+		std::shared_ptr<Encoder> encoder;
 
 		// transcode
 		struct Frame frame;
@@ -625,22 +627,21 @@ once(const std::string &cue_path, const struct options *options)
 		replaygain::Sample rg_sample;
 		rg_analyzer->pop(rg_sample);
 		rg_accum += rg_sample;
-		gain_stats[i].track_gain(rg_sample.adjustment());
-		gain_stats[i].track_peak(rg_sample.peak());
+		gain_stats.get()[i].track_gain(rg_sample.adjustment());
+		gain_stats.get()[i].track_peak(rg_sample.peak());
 
 		if (!encoder->finish()) {
 			std::cerr << prog << ": finish() failed\n";
 			return false;
 		}
 	}
-	in_file.close();
 
 	double album_gain = rg_accum.adjustment();
 	double album_peak = rg_accum.peak();
 
 	for (unsigned i = 0; i < tracks; i++) {
-		gain_stats[i].album_gain(album_gain);
-		gain_stats[i].album_peak(album_peak);
+		gain_stats.get()[i].album_gain(album_gain);
+		gain_stats.get()[i].album_peak(album_peak);
 
 		// I hate these stupid mode strings; "r+b" = O_RDWR, binary
 		File_handle outfp(fopen(out_paths[i].c_str(), "r+b"));
@@ -651,7 +652,7 @@ once(const std::string &cue_path, const struct options *options)
 		}
 
 		Replaygain_writer writer(outfp);
-		writer.add_replaygain(gain_stats[i]);
+		writer.add_replaygain(gain_stats.get()[i]);
 		if (writer.check_if_tempfile_needed())
 			std::cerr << prog << ": padding exhausted for `"
 			    << out_paths[i] << "', using temp file\n";
@@ -770,7 +771,7 @@ main(int argc, char **argv)
 		cuefiles = opt.as<std::vector<std::string> >();
 	}
 
-	boost::scoped_ptr<std::string> out_dir;
+	std::unique_ptr<std::string> out_dir;
 	{
 		const po::variable_value &opt = var_map["outdir"];
 		if (!opt.empty())
