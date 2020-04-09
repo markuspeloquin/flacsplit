@@ -1,4 +1,4 @@
-CFLAGS += -Wall -W -O3 -std=c11 -pedantic
+CFLAGS += -Wall -W -O3 -std=c11 -pedantic -D_XOPEN_SOURCE=500 -D_BSD_SOURCE -D_DEFAULT_SOURCE
 CXXFLAGS += -Wall -W -O3 -std=c++17
 CPPFLAGS += -Ilibcuefile/include
 LDFLAGS += -L/usr/local/lib

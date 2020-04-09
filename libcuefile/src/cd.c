@@ -80,7 +80,7 @@ void cd_delete (Cd *cd)
 		cdtext_delete(cd->cdtext);
 	if (cd->catalog)
 		free(cd->catalog);
-	for (i = 0; i < cd->ntrack; i++)
+	for (i = 0; (ssize_t)i < cd->ntrack; i++)
 		track_delete(cd->track[i]);
 	free(cd);
 }
