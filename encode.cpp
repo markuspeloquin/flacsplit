@@ -69,7 +69,7 @@ protected:
 #endif
 
 	FLAC__StreamEncoderWriteStatus write_callback(
-	    const FLAC__byte *, size_t, unsigned, unsigned) override;
+	    const FLAC__byte *, size_t, uint32_t, uint32_t) override;
 
 	FLAC__StreamEncoderSeekStatus seek_callback(FLAC__uint64) override;
 
@@ -133,7 +133,7 @@ Flac_encoder::add_frame(const struct flacsplit::Frame &frame) {
 
 		set_channels(frame.channels);
 		set_sample_rate(frame.rate);
-		status = init(_fp);
+		status = init();
 		if (status != FLAC__STREAM_ENCODER_INIT_STATUS_OK)
 			throw_traced(Flac_encode_error(
 			    FLAC__StreamEncoderInitStatusString[status]
