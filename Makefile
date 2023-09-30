@@ -2,7 +2,7 @@ CFLAGS += -Wall -Wextra -std=c11 -pedantic
 CXXFLAGS += -Wall -Wextra -std=c++17 -pedantic
 CPPFLAGS += -Ilibcuefile/include -D_XOPEN_SOURCE=500 -D_BSD_SOURCE -D_DEFAULT_SOURCE
 LDFLAGS += -L/usr/local/lib
-LIBS += -lFLAC -lFLAC++ -lboost_program_options -licuuc -lsox
+LIBS += -lFLAC -lFLAC++ -lboost_program_options -lboost_stacktrace_basic -licuuc -lsox
 
 #CFLAGS += -g -O0
 #CXXFLAGS += -g -O0

@@ -9,6 +9,7 @@
 
 #include <FLAC++/metadata.h>
 
+#include "errors.hpp"
 #include "replaygain_writer.hpp"
 
 namespace flacsplit {
@@ -82,7 +83,7 @@ public:
 	virtual int seek_callback(off_t offset, int whence) {
 		long loffset = offset;
 		if (loffset != offset)
-			throw std::runtime_error("bad narrow cast");
+			throw_traced(std::runtime_error("bad narrow cast"));
 
 		return fseek(_fp, offset, whence);
 	}
@@ -210,8 +211,9 @@ flacsplit::Replaygain_writer_impl::add_replaygain(
     const flacsplit::Replaygain_stats &gain_stats) {
 	FLAC::Metadata::VorbisComment *comment = find_comment();
 	if (!comment) {
-		throw std::runtime_error(
-		    "Vorbis comment should have been present");
+		throw_traced(std::runtime_error(
+		    "Vorbis comment should have been present"
+		));
 	}
 
 	append_replaygain_tags(*comment, gain_stats);

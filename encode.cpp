@@ -116,7 +116,7 @@ Flac_encoder::Flac_encoder(FILE *fp, const flacsplit::Music_info &track,
 		if (!FLAC__metadata_object_seektable_template_append_spaced_points_by_samples(
 		    cast_metadata(*_seek_table), SEEKPOINT_SAMPLES,
 		    total_samples)) {
-			throw flacsplit::Unix_error(ENOMEM);
+			throw_traced(flacsplit::Unix_error(ENOMEM));
 		}
 #else
 		_seek_table->template_append_spaced_points_by_samples(
@@ -135,12 +135,13 @@ Flac_encoder::add_frame(const struct flacsplit::Frame &frame) {
 		set_sample_rate(frame.rate);
 		status = init(_fp);
 		if (status != FLAC__STREAM_ENCODER_INIT_STATUS_OK)
-			throw Flac_encode_error(
-			    FLAC__StreamEncoderInitStatusString[status]);
+			throw_traced(Flac_encode_error(
+			    FLAC__StreamEncoderInitStatusString[status]
+			));
 		_init = true;
 	}
 	if (!process(frame.data, frame.samples))
-		throw Flac_encode_error(get_state().as_cstring());
+		throw_traced(Flac_encode_error(get_state().as_cstring()));
 }
 
 void
@@ -268,6 +269,6 @@ Flac_encoder::tell_callback(FLAC__uint64 *absolute_byte_offset) {
 flacsplit::Encoder::Encoder(FILE *fp, const Music_info &track,
     uint64_t total_samples, enum file_format format) {
 	if (format != file_format::FLAC)
-		throw Bad_format();
+		throw_traced(Bad_format());
 	_encoder.reset(new Flac_encoder(fp, track, total_samples));
 }

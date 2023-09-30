@@ -18,6 +18,7 @@
 
 #include <unicode/utf8.h>
 
+#include "errors.hpp"
 #include "sanitize.hpp"
 
 namespace {
@@ -98,7 +99,9 @@ flacsplit::sanitize(const std::string &str) {
 		int32_t	c;
 		U8_NEXT(s, i, length, c);
 		if (c <= 0)
-			throw std::runtime_error("not pre-encoded as utf8");
+			throw_traced(std::runtime_error(
+			    "not pre-encoded as utf8"
+			));
 
 		if (isdigit(c) || c == 0x20 ||
 		    (0x41 <= c && c < 0x5b) ||

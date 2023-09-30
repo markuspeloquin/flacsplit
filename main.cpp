@@ -131,7 +131,7 @@ public:
 	void close() {
 		if (_fp) {
 			if (fclose(_fp) != 0)
-				throw Unix_error("closing file");
+				throw_traced(Unix_error("closing file"));
 			_fp = nullptr;
 		}
 	}
@@ -178,7 +178,9 @@ create_dirs(In begin, In end, const std::string *out_dir) {
 			if (errno != ENOENT) {
 				std::ostringstream eout;
 				eout << "stat `" << out.str() << "' failed";
-				throw flacsplit::Unix_error(eout.str());
+				throw_traced(flacsplit::Unix_error(
+				    eout.str()
+				));
 			}
 		} else if (S_ISDIR(st.st_mode))
 			continue;
@@ -187,7 +189,7 @@ create_dirs(In begin, In end, const std::string *out_dir) {
 		    S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) == -1) {
 			std::ostringstream eout;
 			eout << "mkdir `" << out.str() << "' failed";
-			throw flacsplit::Unix_error(eout.str());
+			throw_traced(flacsplit::Unix_error(eout.str()));
 		}
 	}
 }
@@ -268,7 +270,7 @@ find_file(const std::string &path, std::string &out_path, bool use_flac) {
 	}
 
 	if (errno != ENOENT)
-		throw std::runtime_error("bad errno");
+		throw_traced(std::runtime_error("bad errno"));
 	out_path = path;
 	return nullptr;
 }
@@ -298,7 +300,7 @@ get_cue_extra(const std::string &path, std::string &out_genre,
 	if (!in) {
 		std::ostringstream out;
 		out << "opening `" << path << '\'';
-		throw flacsplit::Unix_error(out.str());
+		throw_traced(flacsplit::Unix_error(out.str()));
 	}
 
 	const std::string DATE = "REM DATE ";
@@ -314,7 +316,7 @@ get_cue_extra(const std::string &path, std::string &out_genre,
 		if (in.bad()) {
 			std::ostringstream out;
 			out << "reading `" << path << '\'';
-			throw flacsplit::Unix_error(out.str());
+			throw_traced(flacsplit::Unix_error(out.str()));
 		} else if (in.eof())
 			break;
 
@@ -337,8 +339,9 @@ get_cue_extra(const std::string &path, std::string &out_genre,
 			offset = strtoul(soff.c_str(), &endptr, 10);
 			if (errno || *endptr) {
 				if (!errno) errno = EINVAL;
-				throw flacsplit::Unix_error(
-				    "bad offset value");
+				throw_traced(flacsplit::Unix_error(
+				    "bad offset value"
+				));
 			}
 		}
 	}
@@ -418,8 +421,9 @@ once(const std::string &cue_path, const struct options *options) {
 				break;
 			else {
 				// this is possible, but I won't handle it
-				throw std::runtime_error(
-				    "mixed track types... screw this");
+				throw_traced(std::runtime_error(
+				    "mixed track types... screw this"
+				));
 			}
 		}
 
@@ -543,7 +547,7 @@ once(const std::string &cue_path, const struct options *options) {
 				std::ostringstream eout;
 				eout << "file `" << derived_path
 				    << "' does not contain enough samples";
-				throw Not_enough_samples(eout.str());
+				throw_traced(Not_enough_samples(eout.str()));
 			}
 		}
 
@@ -559,7 +563,7 @@ once(const std::string &cue_path, const struct options *options) {
 		if (!(outfp = fopen(out_name.c_str(), "wb"))) {
 			std::ostringstream out;
 			out << "open `" << out_name << "' failed";
-			throw Unix_error(out.str());
+			throw_traced(Unix_error(out.str()));
 		}
 
 		std::shared_ptr<Encoder> encoder;
@@ -586,9 +590,10 @@ once(const std::string &cue_path, const struct options *options) {
 					    decoder->sample_rate() / 75.;
 					if (decoder->total_samples() <=
 					    begin_sample) {
-						throw std::runtime_error(
+						throw_traced(std::runtime_error(
 						    "beginning offset isn't "
-						    "where it was expected");
+						    "where it was expected"
+						));
 					}
 					samples = decoder->total_samples() -
 					    begin_sample;
@@ -650,7 +655,7 @@ once(const std::string &cue_path, const struct options *options) {
 		if (!outfp) {
 			std::ostringstream out;
 			out << "open `" << out_paths[i] << "' failed";
-			throw Unix_error(out.str());
+			throw_traced(Unix_error(out.str()));
 		}
 
 		Replaygain_writer writer(outfp);
@@ -757,7 +762,7 @@ main(int argc, char **argv) {
 		usage(visible_desc);
 		return 0;
 	}
-	
+
 	std::vector<std::string> cuefiles;
 	{
 		const po::variable_value &opt = var_map["cuefile"];
@@ -790,6 +795,10 @@ main(int argc, char **argv) {
 				return 1;
 		} catch (const std::exception &e) {
 			std::cerr << prog << ": "  << e.what() << '\n';
+			const boost::stacktrace::stacktrace *st =
+			    boost::get_error_info<traced>(e);
+			if (st)
+				std::cerr << *st << '\n';
 			return 1;
 		}
 	}

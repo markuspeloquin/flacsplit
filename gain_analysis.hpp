@@ -93,7 +93,8 @@ public:
 			const_cast<Sample *>(this)->_dirty = false;
 		} else
 			v = _cached;
-		if (v == GAIN_NOT_ENOUGH_SAMPLES) throw Not_enough_samples();
+		if (v == GAIN_NOT_ENOUGH_SAMPLES)
+			throw_traced(Not_enough_samples());
 		return v;
 	}
 
@@ -157,7 +158,8 @@ public:
 			const_cast<Sample_accum *>(this)->_dirty = false;
 		} else
 			v = _cached;
-		if (v == GAIN_NOT_ENOUGH_SAMPLES) throw Not_enough_samples();
+		if (v == GAIN_NOT_ENOUGH_SAMPLES)
+			throw_traced(Not_enough_samples());
 		return v;
 	}
 
@@ -186,14 +188,16 @@ public:
 		_ctx = replaygain_alloc(freq, &status);
 		switch (status) {
 		case REPLAYGAIN_ERR_MEM:
-			throw std::bad_alloc();
+			flacsplit::throw_traced(std::bad_alloc());
 		case REPLAYGAIN_ERR_SAMPLEFREQ:
-			throw Bad_samplefreq();
+			throw_traced(Bad_samplefreq());
 		case REPLAYGAIN_OK:
 			break;
 		case REPLAYGAIN_ERROR:
 		default:
-			throw std::runtime_error("invalid status");
+			flacsplit::throw_traced(std::runtime_error(
+			    "invalid status"
+			));
 		}
 	}
 

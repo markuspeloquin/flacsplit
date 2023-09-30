@@ -18,6 +18,9 @@
 #include <exception>
 #include <string>
 
+#include <boost/exception/all.hpp>
+#include <boost/stacktrace.hpp>
+
 namespace flacsplit {
 
 struct Bad_format : std::exception {
@@ -69,6 +72,13 @@ struct Unix_error : std::exception {
 	std::string	msg;
 	int		errnum;
 };
+
+typedef boost::error_info<struct tag_stacktrace, boost::stacktrace::stacktrace> traced;
+
+template <class E>
+void throw_traced(const E &e) {
+	throw boost::enable_error_info(e) << traced(boost::stacktrace::stacktrace());
+}
 
 }
 
