@@ -176,6 +176,7 @@ Flac_decoder::next_frame() {
 
 	flacsplit::Frame frame;
 	frame.data = _last_buffer.get();
+	frame.bits_per_sample = _last_frame->header.bits_per_sample;
 	frame.channels = _last_frame->header.channels;
 	frame.samples = _last_frame->header.blocksize;
 	frame.rate = _last_frame->header.sample_rate;
@@ -281,8 +282,20 @@ Wave_decoder::next_frame() {
 		));
 	}
 
+	int32_t bits_per_sample;
+	int shamt;
+	switch (_info.format & SF_FORMAT_SUBMASK) {
+	case SF_FORMAT_PCM_S8: bits_per_sample = 8;  shamt = 24; break;
+	case SF_FORMAT_PCM_16: bits_per_sample = 16; shamt = 16; break;
+	case SF_FORMAT_PCM_24: bits_per_sample = 24; shamt = 8;  break;
+	case SF_FORMAT_PCM_32: bits_per_sample = 32; shamt = 0;  break;
+	default:
+		throw flacsplit::throw_traced(std::runtime_error("bad format"));
+	}
+
 	flacsplit::Frame frame;
 	frame.data = _transp_ptrs.get();
+	frame.bits_per_sample = bits_per_sample;
 	frame.channels = _info.channels;
 	if (samples % frame.channels)
 		flacsplit::throw_traced(std::runtime_error(
@@ -292,11 +305,12 @@ Wave_decoder::next_frame() {
 	frame.rate = _info.samplerate;
 
 	// transpose _samples => _transp
+	// Also scale down values when not 32bit.
 	size_t i = 0;
 	for (int sample = 0; sample < frame.samples; sample++) {
 		int j = sample;
 		for (int channel = 0; channel < frame.channels; channel++) {
-			_transp.get()[j] = _samples.get()[i];
+			_transp.get()[j] = _samples.get()[i] >> shamt;
 			i++;
 			j += frame.samples;
 		}

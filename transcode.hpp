@@ -27,7 +27,10 @@ namespace flacsplit {
 enum class file_format { UNKNOWN, WAVE, FLAC };
 
 struct Frame {
+	// If bits_per_sample is 16, data will consist of values in
+	// [-32768, 32768).
 	const int32_t *const	*data;
+	int	bits_per_sample;
 	int	channels;
 	int	samples;
 	int	rate;

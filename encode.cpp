@@ -12,6 +12,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
+#include <FLAC/format.h>
 #if FLACPP_API_VERSION_CURRENT <= 8
 #	include <cerrno>
 #endif
@@ -63,11 +64,6 @@ public:
 	}
 
 protected:
-#if 0
-	FLAC__StreamEncoderReadStatus read_callback(FLAC__byte *,
-	    size_t *) override;
-#endif
-
 	FLAC__StreamEncoderWriteStatus write_callback(
 	    const FLAC__byte *, size_t, uint32_t, uint32_t) override;
 
@@ -131,15 +127,18 @@ Flac_encoder::add_frame(const struct flacsplit::Frame &frame) {
 	if (!_init) {
 		FLAC__StreamEncoderInitStatus status;
 
+		set_bits_per_sample(frame.bits_per_sample);
 		set_channels(frame.channels);
 		set_sample_rate(frame.rate);
 		status = init();
-		if (status != FLAC__STREAM_ENCODER_INIT_STATUS_OK)
+		if (status != FLAC__STREAM_ENCODER_INIT_STATUS_OK) {
 			throw_traced(Flac_encode_error(
 			    FLAC__StreamEncoderInitStatusString[status]
 			));
+		}
 		_init = true;
 	}
+	// TODO check that channels/rate/bits_per_sample are unchanged
 	if (!process(frame.data, frame.samples))
 		throw_traced(Flac_encode_error(get_state().as_cstring()));
 }
@@ -223,20 +222,9 @@ Flac_encoder::set_meta(const flacsplit::Music_info &track,
 	}
 }
 
-#if 0
-FLAC__StreamEncoderReadStatus
-Flac_encoder::read_callback(FLAC__byte *buffer, size_t *bytes) {
-	//FLAC__STREAM_ENCODER_READ_STATUS_CONTINUE
-	//FLAC__STREAM_ENCODER_READ_STATUS_END_OF_STREAM
-	//FLAC__STREAM_ENCODER_READ_STATUS_ABORT
-	//FLAC__STREAM_ENCODER_READ_STATUS_UNSUPPORTED
-	return FLAC__STREAM_ENCODER_READ_STATUS_UNSUPPORTED;
-}
-#endif
-
 FLAC__StreamEncoderWriteStatus
 Flac_encoder::write_callback(const FLAC__byte *buffer, size_t bytes,
-    unsigned /*samples*/, unsigned /*current_frame*/) {
+    uint32_t /*samples*/, uint32_t /*current_frame*/) {
 	if (fwrite(buffer, bytes, 1, _fp))
 		return FLAC__STREAM_ENCODER_WRITE_STATUS_OK;
 	return FLAC__STREAM_ENCODER_WRITE_STATUS_FATAL_ERROR;
@@ -247,12 +235,12 @@ Flac_encoder::seek_callback(FLAC__uint64 absolute_byte_offset) {
 	long off = absolute_byte_offset;
 	if (static_cast<FLAC__uint64>(off) !=
 	    absolute_byte_offset) {
-		throw std::runtime_error("bad offset");
+		flacsplit::throw_traced(std::runtime_error("bad offset"));
 	}
 
-	return fseek(_fp, off, SEEK_SET) ?
-	    FLAC__STREAM_ENCODER_SEEK_STATUS_ERROR :
-	    FLAC__STREAM_ENCODER_SEEK_STATUS_OK;
+	if (fseek(_fp, off, SEEK_SET))
+		return FLAC__STREAM_ENCODER_SEEK_STATUS_ERROR;
+	return FLAC__STREAM_ENCODER_SEEK_STATUS_OK;
 }
 
 FLAC__StreamEncoderTellStatus
