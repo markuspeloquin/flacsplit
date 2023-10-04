@@ -53,7 +53,7 @@ public:
 	Flac_decoder(FILE *);
 
 	//! \throw Flac_decode_error
-	flacsplit::Frame next_frame() override;
+	flacsplit::Frame next_frame(bool allow_short) override;
 
 	void seek(int64_t sample) override {
 		seek_absolute(sample);
@@ -115,7 +115,7 @@ public:
 	}
 
 	//! \throw Wave_decode_error
-	flacsplit::Frame next_frame() override;
+	flacsplit::Frame next_frame(bool allow_short) override;
 
 	//! \throw Wave_decode_error
 	void seek(int64_t frame) override {
@@ -163,7 +163,7 @@ Flac_decoder::Flac_decoder(FILE *fp) :
 }
 
 flacsplit::Frame
-Flac_decoder::next_frame() {
+Flac_decoder::next_frame(bool) {
 	// a seek will trigger a call to write_callback(), so don't process
 	// the next frame if it hasn't been seen yet here
 	if (!_last_frame || _frame_retrieved)
@@ -269,10 +269,10 @@ Wave_decoder::close_quiet(SNDFILE *file) noexcept {
 }
 
 flacsplit::Frame
-Wave_decoder::next_frame() {
+Wave_decoder::next_frame(bool allow_short) {
 	sf_count_t samples;
 	samples = sf_read_int(_file, _samples.get(), _samples_len);
-	if (samples < _samples_len) {
+	if (!allow_short && samples < _samples_len) {
 		// This may only occur on the final track if this is not an
 		// exact number of frames. Perhaps because the data is not from
 		// a CD.
