@@ -47,7 +47,7 @@ public:
 class Decoder : public Basic_decoder {
 public:
 	//! \throw Bad_format
-	//! \throw Sox_error
+	//! \throw Sndfile_error
 	Decoder(const std::string &, FILE *, file_format=file_format::UNKNOWN);
 
 	//! \throw DecodeError

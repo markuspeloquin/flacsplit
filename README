@@ -16,4 +16,4 @@ Features:
    albums, but it's close enough.
 
 Build dependencies: cmake, flex, yacc
-Runtime dependencies: boost, flac (with C++ bindings), icu, sox
+Runtime dependencies: boost, flac (with C++ bindings), icu, sndfile
