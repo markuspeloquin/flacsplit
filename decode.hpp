@@ -64,12 +64,13 @@ public:
 	void seek_frame(uint64_t frame) {
 		// sample rates aren't always divisible by 3*5*5 = 75, e.g.
 		// 32 kHz, which MP3 supports
-
-		// seek(round(sample_rate * frame / 75))
-		seek((2 * _decoder->sample_rate() * frame + 75) / 150);
-
-		// though maybe floor would be better instead?
-		//seek(_decoder->sample_rate() * frame / 75);
+		int64_t numer = _decoder->sample_rate() * frame;
+		int64_t sample = numer / 75;
+		if (sample * 75 != numer)
+			throw_traced(std::runtime_error(
+			    "frame number doesn't map to a sample number"
+			));
+		seek(sample);
 	}
 
 	unsigned sample_rate() const override {

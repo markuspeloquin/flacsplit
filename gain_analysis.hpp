@@ -188,9 +188,9 @@ public:
 		_ctx = replaygain_alloc(freq, &status);
 		switch (status) {
 		case REPLAYGAIN_ERR_MEM:
-			flacsplit::throw_traced(std::bad_alloc());
+			throw flacsplit::throw_traced(std::bad_alloc());
 		case REPLAYGAIN_ERR_SAMPLEFREQ:
-			throw_traced(Bad_samplefreq());
+			throw throw_traced(Bad_samplefreq());
 		case REPLAYGAIN_OK:
 			break;
 		case REPLAYGAIN_ERROR:

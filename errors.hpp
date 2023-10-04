@@ -16,10 +16,12 @@
 #define ERRORS_HPP
 
 #include <exception>
+#include <sstream>
 #include <string>
 
 #include <boost/exception/all.hpp>
 #include <boost/stacktrace.hpp>
+#include <sndfile.h>
 
 namespace flacsplit {
 
@@ -50,14 +52,23 @@ private:
 	std::string _msg;
 };
 
-struct Sox_error : std::exception {
-	Sox_error(const std::string &msg) : _msg(msg) {}
-
-	const char *what() const noexcept override {
-		return _msg.c_str();
+struct Sndfile_error : std::exception {
+	Sndfile_error(int errnum) : errnum(errnum) {
+		msg = sf_error_number(errnum);
 	}
 
-	std::string _msg;
+	Sndfile_error(const std::string &msg, int errnum) : errnum(errnum) {
+		std::ostringstream out;
+		out << msg << ": " << sf_error_number(errnum);
+		this->msg = out.str();
+	}
+
+	const char *what() const noexcept override {
+		return msg.c_str();
+	}
+
+	std::string msg;
+	int errnum;
 };
 
 struct Unix_error : std::exception {
@@ -76,7 +87,7 @@ struct Unix_error : std::exception {
 typedef boost::error_info<struct tag_stacktrace, boost::stacktrace::stacktrace> traced;
 
 template <class E>
-void throw_traced(const E &e) {
+E throw_traced(const E &e) {
 	throw boost::enable_error_info(e) << traced(boost::stacktrace::stacktrace());
 }
 

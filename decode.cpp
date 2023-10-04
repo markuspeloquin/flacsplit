@@ -17,10 +17,11 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <iostream>
 #include <memory>
 
 #include <FLAC++/decoder.h>
-#include <sox.h>
+#include <sndfile.h>
 
 #include "decode.hpp"
 #include "errors.hpp"
@@ -31,44 +32,6 @@ const unsigned FRAMES_PER_SEC = 75;
 
 enum flacsplit::file_format	get_file_format(FILE *);
 bool				same_file(FILE *, FILE *);
-
-class Sox_init {
-public:
-	Sox_init() : _valid(false) {}
-
-	~Sox_init() {
-		if (_valid)
-			sox_quit();
-	}
-
-	//! \throw flacsplit::Sox_error
-	static void init() {
-		if (!_instance._valid)
-			_instance.do_init();
-	}
-
-private:
-	Sox_init(const Sox_init &) {}
-	void operator=(const Sox_init &) {}
-
-	//! \throw flacsplit::Sox_error
-	void do_init() {
-		_valid = true;
-		if (sox_init() != SOX_SUCCESS)
-			_valid = false;
-		//if (_valid && sox_format_init() != SOX_SUCCESS) {
-		//	sox_quit();
-		//	_valid = false;
-		//}
-
-		if (!_valid)
-			throw_traced(flacsplit::Sox_error("sox_init() error"));
-	}
-
-	static Sox_init _instance;
-
-	bool _valid;
-};
 
 class Flac_decoder :
     public FLAC::Decoder::File,
@@ -144,12 +107,11 @@ public:
 		std::string _msg;
 	};
 
-	//! \throw flacsplit::Sox_error
+	//! \throw flacsplit::Sndfile_error
 	Wave_decoder(const std::string &, FILE *);
 
 	virtual ~Wave_decoder() noexcept {
-		// TODO figure out if this closes the file
-		sox_close(_fmt);
+		close_quiet(_file);
 	}
 
 	//! \throw Wave_decode_error
@@ -157,30 +119,31 @@ public:
 
 	//! \throw Wave_decode_error
 	void seek(uint64_t sample) override {
-		sample *= _fmt->signal.channels;
-		if (sox_seek(_fmt, sample, SOX_SEEK_SET) != SOX_SUCCESS)
-			throw_traced(Wave_decode_error("sox_seek() error"));
+		if (sf_seek(_file, frame, SF_SEEK_SET) == -1)
+			throw_traced(flacsplit::Sndfile_error(
+			    "sf_seek error", sf_error(_file)
+			));
 	}
 
 	unsigned sample_rate() const override {
-		return _fmt->signal.rate;
+		return _info.samplerate;
 	}
 
 	uint64_t total_samples() const override {
-		// a 32-bit size_t (sox_signalinfo_t::length) is big enough
-		// for 2-channel 44.1 kHz for 13.5 hours
-		return _fmt->signal.length / _fmt->signal.channels;
+		// 31 bits is big enough for 2-channel 48 kHz for 6.21 hours
+		return _info.frames;
 	}
 
 private:
-	std::unique_ptr<sox_sample_t>	_samples;
+	static void close_quiet(SNDFILE *file) noexcept;
+
+	std::unique_ptr<int32_t>	_samples;
 	std::unique_ptr<int32_t>	_transp;
 	std::unique_ptr<int32_t *>	_transp_ptrs;
-	sox_format_t	*_fmt;
-	size_t		_samples_len;
+	SNDFILE		*_file;
+	SF_INFO		_info;
+	sf_count_t	_samples_len;
 };
-
-Sox_init Sox_init::_instance;
 
 Flac_decoder::Flac_decoder(FILE *fp) :
 	FLAC::Decoder::File(),
@@ -273,59 +236,63 @@ Wave_decoder::Wave_decoder(const std::string &path, FILE *fp) :
 	_samples(),
 	_transp()
 {
-	Sox_init::init();
-	if (!(_fmt = sox_open_read(path.c_str(), nullptr, nullptr, nullptr)))
-		throw_traced(flacsplit::Sox_error("sox_open_read() error"));
+	_file = sf_open_fd(fileno(fp), SFM_READ, &_info, false);
+	if (!_file)
+		throw_traced(flacsplit::Sndfile_error(
+		    "sf_open_fd failed", sf_error(nullptr)
+		));
 
 	try {
-		// XXX sox-14.4.0 has sox_format_t::fp declared as void*
-		if (!same_file(fp, reinterpret_cast<FILE *>(_fmt->fp)))
-			flacsplit::throw_traced(std::runtime_error(
-			    "file has moved?"
-			));
-		_samples_len = _fmt->signal.channels * _fmt->signal.rate /
+		_samples_len = _info.channels * _info.samplerate /
 		    FRAMES_PER_SEC;
-		_samples.reset(new sox_sample_t[_samples_len]);
+		_samples.reset(new int32_t[_samples_len]);
 		_transp.reset(new int32_t[_samples_len]);
-		_transp_ptrs.reset(
-		    new int32_t *[_fmt->signal.channels]);
+		_transp_ptrs.reset(new int32_t *[_info.channels]);
 	} catch (...) {
-		sox_close(_fmt);
+		close_quiet(_file);
 		throw;
 	}
 }
 
 void
+Wave_decoder::close_quiet(SNDFILE *file) noexcept {
+		int errnum = sf_close(file);
+		if (errnum) {
+			// Probably never occurs.
+			std::cerr << "failed to close: "
+			    << sf_error_number(errnum) << '\n';
+		}
+}
+
+void
 Wave_decoder::next_frame(struct flacsplit::Frame &frame) {
-	size_t samples;
-	samples = sox_read(_fmt, _samples.get(), _samples_len);
-	if (samples < _samples_len)
-		throw_traced(Wave_decode_error("sox_read() error"));
+	sf_count_t samples;
+	samples = sf_read_int(_file, _samples.get(), _samples_len);
+	if (samples < _samples_len) {
+		// This may only occur on the final track if this is not an
+		// exact number of frames. Perhaps because the data is not from
+		// a CD.
+		std::cerr << "expected " << _samples_len << " but got " << samples << '\n';
+		throw_traced(flacsplit::Sndfile_error(
+		    "sf_read error", sf_error(_file)
+		));
+	}
 
 	frame.data = _transp_ptrs.get();
-	frame.channels = _fmt->signal.channels;
+	frame.channels = _info.channels;
 	if (samples % frame.channels)
 		flacsplit::throw_traced(std::runtime_error(
 		    "bad number of samples"
 		));
 	frame.samples = samples / frame.channels;
-	frame.rate = _fmt->signal.rate;
+	frame.rate = _info.samplerate;
 
 	// transpose _samples => _transp
 	size_t i = 0;
 	for (size_t sample = 0; sample < frame.samples; sample++) {
 		size_t j = sample;
-		for (size_t channel = 0; channel < frame.channels;
-		    channel++) {
-			SOX_SAMPLE_LOCALS;
-			unsigned clips = 0;
-			int32_t samp = SOX_SAMPLE_TO_SIGNED_16BIT(
-			    _samples.get()[i], clips);
-			if (clips)
-				flacsplit::throw_traced(std::runtime_error(
-				    "should not clip"
-				));
-			_transp.get()[j] = samp;
+		for (size_t channel = 0; channel < frame.channels; channel++) {
+			_transp.get()[j] = _samples.get()[i];
 			i++;
 			j += frame.samples;
 		}
@@ -357,24 +324,6 @@ get_file_format(FILE *fp) {
 	return flacsplit::file_format::UNKNOWN;
 }
 
-/** Check that two C file pointers reference the same underlying file
- * (according to the device and inode).
- * \throw flacsplit::Unix_error if there is a problem calling fstat(2) on an
- *	underlying file descriptor
- * \return whether they are the same
- */
-bool
-same_file(FILE *a, FILE *b) {
-	struct stat st_a;
-	struct stat st_b;
-
-	if (fstat(fileno(a), &st_a))
-		throw_traced(flacsplit::Unix_error("statting open file"));
-	if (fstat(fileno(b), &st_b))
-		throw_traced(flacsplit::Unix_error("statting open file"));
-	return st_a.st_dev == st_b.st_dev && st_a.st_ino == st_b.st_ino;
-}
-
 } // end anon
 
 flacsplit::Decoder::Decoder(const std::string &path, FILE *fp,
@@ -386,7 +335,7 @@ flacsplit::Decoder::Decoder(const std::string &path, FILE *fp,
 		format = get_file_format(fp);
 	switch (format) {
 	case file_format::UNKNOWN:
-		throw_traced(Bad_format());
+		throw throw_traced(Bad_format());
 	case file_format::WAVE:
 		_decoder.reset(new Wave_decoder(path, fp));
 		break;
