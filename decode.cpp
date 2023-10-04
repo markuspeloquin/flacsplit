@@ -55,7 +55,7 @@ public:
 	//! \throw Flac_decode_error
 	flacsplit::Frame next_frame() override;
 
-	void seek(uint64_t sample) override {
+	void seek(int64_t sample) override {
 		seek_absolute(sample);
 	}
 
@@ -63,7 +63,7 @@ public:
 		return get_sample_rate();
 	}
 
-	uint64_t total_samples() const override {
+	int64_t total_samples() const override {
 		return get_total_samples();
 	}
 
@@ -98,13 +98,13 @@ private:
 class Wave_decoder : public flacsplit::Basic_decoder {
 public:
 	struct Wave_decode_error : flacsplit::Decode_error {
-		Wave_decode_error(const char *msg) : _msg(msg) {}
+		Wave_decode_error(const char *msg) : msg(msg) {}
 
 		const char *what() const noexcept override {
-			return _msg.c_str();
+			return msg.c_str();
 		}
 
-		std::string _msg;
+		std::string msg;
 	};
 
 	//! \throw flacsplit::Sndfile_error
@@ -118,7 +118,7 @@ public:
 	flacsplit::Frame next_frame() override;
 
 	//! \throw Wave_decode_error
-	void seek(uint64_t sample) override {
+	void seek(int64_t frame) override {
 		if (sf_seek(_file, frame, SF_SEEK_SET) == -1)
 			throw_traced(flacsplit::Sndfile_error(
 			    "sf_seek error", sf_error(_file)
@@ -129,7 +129,7 @@ public:
 		return _info.samplerate;
 	}
 
-	uint64_t total_samples() const override {
+	int64_t total_samples() const override {
 		// 31 bits is big enough for 2-channel 48 kHz for 6.21 hours
 		return _info.frames;
 	}
@@ -293,9 +293,9 @@ Wave_decoder::next_frame() {
 
 	// transpose _samples => _transp
 	size_t i = 0;
-	for (size_t sample = 0; sample < frame.samples; sample++) {
-		size_t j = sample;
-		for (size_t channel = 0; channel < frame.channels; channel++) {
+	for (int sample = 0; sample < frame.samples; sample++) {
+		int j = sample;
+		for (int channel = 0; channel < frame.channels; channel++) {
 			_transp.get()[j] = _samples.get()[i];
 			i++;
 			j += frame.samples;
@@ -304,7 +304,7 @@ Wave_decoder::next_frame() {
 
 	// make 2d array to return
 	_transp_ptrs.get()[0] = _transp.get();
-	for (size_t channel = 1; channel < frame.channels; channel++)
+	for (int channel = 1; channel < frame.channels; channel++)
 		_transp_ptrs.get()[channel] = _transp_ptrs.get()[channel-1] +
 		    frame.samples;
 

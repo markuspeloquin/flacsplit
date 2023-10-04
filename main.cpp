@@ -409,9 +409,9 @@ once(const std::string &cue_path, const struct options *options) {
 	album_info.date(date);
 
 	std::vector<std::shared_ptr<Music_info>> track_info;
-	std::vector<uint32_t> begin;
-	std::vector<uint32_t> end;
-	std::vector<uint32_t> pregap;
+	std::vector<int32_t> begin;
+	std::vector<int32_t> end;
+	std::vector<int32_t> pregap;
 	std::vector<unsigned> track_numbers;
 	unsigned tracks = cd_get_ntrack(cd);
 	for (unsigned i = 0; i < tracks; i++) {
@@ -427,10 +427,10 @@ once(const std::string &cue_path, const struct options *options) {
 			}
 		}
 
-		uint32_t begin_ = track_get_start(track);
-		uint32_t end_ = track_get_length(track);
+		int32_t begin_ = track_get_start(track);
+		int32_t end_ = track_get_length(track);
 		if (end_) end_ += begin_;
-		uint32_t pregap_ = track_get_index(track, 1);
+		int32_t pregap_ = track_get_index(track, 1);
 
 		if (!i && pregap_ && options->hidden_track) {
 			// XXX I am calling this track 0, which won't work
@@ -496,8 +496,8 @@ once(const std::string &cue_path, const struct options *options) {
 	replaygain::Sample_accum		rg_accum;
 	std::unique_ptr<replaygain::Analyzer>	rg_analyzer;
 	std::unique_ptr<double>			rg_samples;
-	double		*double_samples[] = { nullptr, nullptr };
-	unsigned	dimens[] = { 0, 0 };
+	double	*double_samples[] = { nullptr, nullptr };
+	int	dimens[] = { 0, 0 };
 
 	std::unique_ptr<Replaygain_stats> gain_stats(
 	    new Replaygain_stats[begin.size()]);
@@ -539,14 +539,18 @@ once(const std::string &cue_path, const struct options *options) {
 				return false;
 			}
 
-			uint64_t last_track_frame =
+			int64_t last_track_frame =
 			    begin[track_numbers.size()-1];
 			double last_track_sample = last_track_frame *
 			    decoder->sample_rate() / 75.;
 			if (decoder->total_samples() <= last_track_sample) {
 				std::ostringstream eout;
 				eout << "file `" << derived_path
-				    << "' does not contain enough samples";
+				    << "' does not contain enough samples;"
+				    << " expected at least "
+				    << last_track_sample
+				    << " but found "
+				    << decoder->total_samples();
 				throw_traced(Not_enough_samples(eout.str()));
 			}
 		}
@@ -569,23 +573,25 @@ once(const std::string &cue_path, const struct options *options) {
 		std::shared_ptr<Encoder> encoder;
 
 		// transcode
-		uint64_t samples = 0;
-		uint64_t track_samples = 0;
+		int64_t samples = 0;
+		int64_t track_samples = 0;
 		decoder->seek_frame(begin[i]);
 		do {
-			Frame frame = decoder->next_frame();
+			bool allow_short = end[i] == 0;
+			Frame frame = decoder->next_frame(allow_short);
+			if (allow_short && !frame.samples)
+				break;
 
 			// with FLAC, stream properties like the sample rate
 			// aren't known until after the first seek/process
 			if (!track_samples) {
 				double		samples;
 				if (end[i]) {
-					uint64_t frames = end[i] - begin[i];
+					int64_t frames = end[i] - begin[i];
 					samples = frames *
 					    decoder->sample_rate() / 75.;
 				} else {
-					double begin_sample =
-					    static_cast<uint64_t>(begin[i]) *
+					double begin_sample = begin[i] *
 					    decoder->sample_rate() / 75.;
 					if (decoder->total_samples() <=
 					    begin_sample) {
@@ -597,7 +603,7 @@ once(const std::string &cue_path, const struct options *options) {
 					samples = decoder->total_samples() -
 					    begin_sample;
 				}
-				track_samples = static_cast<uint64_t>(
+				track_samples = static_cast<int64_t>(
 				    samples + .5);
 
 				encoder.reset(new Encoder(outfp,
@@ -607,7 +613,7 @@ once(const std::string &cue_path, const struct options *options) {
 				    decoder->sample_rate()));
 			}
 
-			uint64_t remaining = track_samples - samples;
+			int64_t remaining = track_samples - samples;
 			if (remaining < frame.samples)
 				frame.samples = remaining;
 			samples += frame.samples;
@@ -689,10 +695,10 @@ split_path(const std::string &path, std::string &dirname,
 
 void
 transform_sample_fmt(const Frame &frame, double **out) {
-	for (unsigned c = 0; c < frame.channels; c++) {
+	for (int c = 0; c < frame.channels; c++) {
 		const int32_t	*channel_in = frame.data[c];
 		double		*channel_out = out[c];
-		for (unsigned s = 0; s < frame.samples; s++) {
+		for (int s = 0; s < frame.samples; s++) {
 			channel_out[s] = static_cast<double>(channel_in[s]);
 		}
 	}

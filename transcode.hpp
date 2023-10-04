@@ -28,9 +28,9 @@ enum class file_format { UNKNOWN, WAVE, FLAC };
 
 struct Frame {
 	const int32_t *const	*data;
-	unsigned		channels;
-	unsigned		samples;
-	unsigned		rate;
+	int	channels;
+	int	samples;
+	int	rate;
 };
 
 class Music_info {

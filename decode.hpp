@@ -37,11 +37,11 @@ public:
 	virtual Frame next_frame() = 0;
 
 	//! \throw DecodeError
-	virtual void seek(uint64_t sample) = 0;
+	virtual void seek(int64_t sample) = 0;
 
 	virtual unsigned sample_rate() const = 0;
 
-	virtual uint64_t total_samples() const = 0;
+	virtual int64_t total_samples() const = 0;
 };
 
 class Decoder : public Basic_decoder {
@@ -56,12 +56,12 @@ public:
 	}
 
 	//! \throw DecodeError
-	void seek(uint64_t sample) override {
+	void seek(int64_t sample) override {
 		_decoder->seek(sample);
 	}
 
 	//! \throw DecodeError
-	void seek_frame(uint64_t frame) {
+	void seek_frame(int64_t frame) {
 		// sample rates aren't always divisible by 3*5*5 = 75, e.g.
 		// 32 kHz, which MP3 supports
 		int64_t numer = _decoder->sample_rate() * frame;
@@ -77,7 +77,7 @@ public:
 		return _decoder->sample_rate();
 	}
 
-	uint64_t total_samples() const override {
+	int64_t total_samples() const override {
 		return _decoder->total_samples();
 	}
 
