@@ -34,7 +34,7 @@ public:
 	virtual ~Basic_decoder() noexcept {}
 
 	//! \throw DecodeError
-	virtual void next_frame(struct Frame &) = 0;
+	virtual Frame next_frame() = 0;
 
 	//! \throw DecodeError
 	virtual void seek(uint64_t sample) = 0;
@@ -51,8 +51,8 @@ public:
 	Decoder(const std::string &, FILE *, file_format=file_format::UNKNOWN);
 
 	//! \throw DecodeError
-	void next_frame(struct Frame &frame) override {
-		_decoder->next_frame(frame);
+	Frame next_frame() override {
+		return _decoder->next_frame();
 	}
 
 	//! \throw DecodeError

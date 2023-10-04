@@ -53,7 +53,7 @@ public:
 	Flac_decoder(FILE *);
 
 	//! \throw Flac_decode_error
-	void next_frame(struct flacsplit::Frame &) override;
+	flacsplit::Frame next_frame() override;
 
 	void seek(uint64_t sample) override {
 		seek_absolute(sample);
@@ -115,7 +115,7 @@ public:
 	}
 
 	//! \throw Wave_decode_error
-	void next_frame(struct flacsplit::Frame &) override;
+	flacsplit::Frame next_frame() override;
 
 	//! \throw Wave_decode_error
 	void seek(uint64_t sample) override {
@@ -162,8 +162,8 @@ Flac_decoder::Flac_decoder(FILE *fp) :
 	seek(0);
 }
 
-void
-Flac_decoder::next_frame(struct flacsplit::Frame &frame) {
+flacsplit::Frame
+Flac_decoder::next_frame() {
 	// a seek will trigger a call to write_callback(), so don't process
 	// the next frame if it hasn't been seen yet here
 	if (!_last_frame || _frame_retrieved)
@@ -173,11 +173,14 @@ Flac_decoder::next_frame(struct flacsplit::Frame &frame) {
 			));
 	if (_last_status)
 		throw_traced(Flac_decode_error(_last_status));
+
+	flacsplit::Frame frame;
 	frame.data = _last_buffer.get();
 	frame.channels = _last_frame->header.channels;
 	frame.samples = _last_frame->header.blocksize;
 	frame.rate = _last_frame->header.sample_rate;
 	_frame_retrieved = true;
+	return frame;
 }
 
 FLAC__StreamDecoderWriteStatus
@@ -264,8 +267,8 @@ Wave_decoder::close_quiet(SNDFILE *file) noexcept {
 		}
 }
 
-void
-Wave_decoder::next_frame(struct flacsplit::Frame &frame) {
+flacsplit::Frame
+Wave_decoder::next_frame() {
 	sf_count_t samples;
 	samples = sf_read_int(_file, _samples.get(), _samples_len);
 	if (samples < _samples_len) {
@@ -278,6 +281,7 @@ Wave_decoder::next_frame(struct flacsplit::Frame &frame) {
 		));
 	}
 
+	flacsplit::Frame frame;
 	frame.data = _transp_ptrs.get();
 	frame.channels = _info.channels;
 	if (samples % frame.channels)
@@ -303,6 +307,8 @@ Wave_decoder::next_frame(struct flacsplit::Frame &frame) {
 	for (size_t channel = 1; channel < frame.channels; channel++)
 		_transp_ptrs.get()[channel] = _transp_ptrs.get()[channel-1] +
 		    frame.samples;
+
+	return frame;
 }
 
 flacsplit::file_format

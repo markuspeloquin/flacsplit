@@ -569,12 +569,11 @@ once(const std::string &cue_path, const struct options *options) {
 		std::shared_ptr<Encoder> encoder;
 
 		// transcode
-		struct Frame frame;
 		uint64_t samples = 0;
 		uint64_t track_samples = 0;
 		decoder->seek_frame(begin[i]);
 		do {
-			decoder->next_frame(frame);
+			Frame frame = decoder->next_frame();
 
 			// with FLAC, stream properties like the sample rate
 			// aren't known until after the first seek/process
