@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include <cerrno>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -695,11 +696,16 @@ split_path(const std::string &path, std::string &dirname,
 
 void
 transform_sample_fmt(const Frame &frame, double **out) {
+	int shamt = 16 - frame.bits_per_sample;
+
 	for (int c = 0; c < frame.channels; c++) {
 		const int32_t	*channel_in = frame.data[c];
 		double		*channel_out = out[c];
 		for (int s = 0; s < frame.samples; s++) {
-			channel_out[s] = static_cast<double>(channel_in[s]);
+			// Scale to 16-bit.
+			double samplef = static_cast<double>(channel_in[s]);
+			if (shamt) samplef = ldexp(samplef, shamt);
+			channel_out[s] = samplef;
 		}
 	}
 }
