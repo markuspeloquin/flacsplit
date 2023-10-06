@@ -39,7 +39,7 @@ public:
 	//! \throw DecodeError
 	virtual void seek(int64_t sample) = 0;
 
-	virtual unsigned sample_rate() const = 0;
+	virtual int32_t sample_rate() const = 0;
 
 	virtual int64_t total_samples() const = 0;
 };
@@ -73,7 +73,7 @@ public:
 		seek(sample);
 	}
 
-	unsigned sample_rate() const override {
+	int32_t sample_rate() const override {
 		return _decoder->sample_rate();
 	}
 

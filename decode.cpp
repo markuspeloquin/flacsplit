@@ -58,7 +58,7 @@ public:
 		seek_absolute(sample);
 	}
 
-	unsigned sample_rate() const override {
+	int32_t sample_rate() const override {
 		return get_sample_rate();
 	}
 
@@ -124,7 +124,7 @@ public:
 			));
 	}
 
-	unsigned sample_rate() const override {
+	int32_t sample_rate() const override {
 		return _info.samplerate;
 	}
 

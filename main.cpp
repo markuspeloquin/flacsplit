@@ -410,9 +410,9 @@ once(const std::string &cue_path, const struct options *options) {
 	album_info.date(date);
 
 	std::vector<std::shared_ptr<Music_info>> track_info;
-	std::vector<int32_t> begin;
-	std::vector<int32_t> end;
-	std::vector<int32_t> pregap;
+	std::vector<int64_t> begin;
+	std::vector<int64_t> end;
+	std::vector<int64_t> pregap;
 	std::vector<unsigned> track_numbers;
 	unsigned tracks = cd_get_ntrack(cd);
 	for (unsigned i = 0; i < tracks; i++) {
