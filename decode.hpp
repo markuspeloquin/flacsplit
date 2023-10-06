@@ -48,7 +48,7 @@ class Decoder : public Basic_decoder {
 public:
 	//! \throw Bad_format
 	//! \throw Sndfile_error
-	Decoder(const std::string &, FILE *, file_format=file_format::UNKNOWN);
+	Decoder(FILE *, file_format=file_format::UNKNOWN);
 
 	//! \throw DecodeError
 	Frame next_frame(bool allow_short) override {

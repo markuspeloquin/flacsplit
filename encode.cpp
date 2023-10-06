@@ -257,7 +257,7 @@ flacsplit::Encoder::Encoder(
     const Music_info &track,
     int64_t total_samples,
     int64_t sample_rate,
-    enum file_format file_format
+    file_format file_format
 ) {
 	if (file_format != file_format::FLAC)
 		throw_traced(Bad_format());

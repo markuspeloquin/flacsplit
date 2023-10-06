@@ -529,8 +529,7 @@ once(const std::string &cue_path, const struct options *options) {
 			std::cout << "< " << derived_path << '\n';
 
 			try {
-				decoder.reset(new Decoder(derived_path,
-				    in_file));
+				decoder.reset(new Decoder(in_file));
 				in_file.release();
 			} catch (const Bad_format &) {
 				std::cerr << prog

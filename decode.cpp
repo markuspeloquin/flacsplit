@@ -30,8 +30,7 @@ namespace {
 
 const unsigned FRAMES_PER_SEC = 75;
 
-enum flacsplit::file_format	get_file_format(FILE *);
-bool				same_file(FILE *, FILE *);
+flacsplit::file_format	get_file_format(FILE *);
 
 class Flac_decoder :
     public FLAC::Decoder::File,
@@ -108,7 +107,7 @@ public:
 	};
 
 	//! \throw flacsplit::Sndfile_error
-	Wave_decoder(const std::string &, FILE *);
+	Wave_decoder(FILE *);
 
 	virtual ~Wave_decoder() noexcept {
 		close_quiet(_file);
@@ -235,7 +234,7 @@ Flac_decoder::length_callback(FLAC__uint64 *stream_length) {
 	return FLAC__STREAM_DECODER_LENGTH_STATUS_OK;
 }
 
-Wave_decoder::Wave_decoder(const std::string &path, FILE *fp) :
+Wave_decoder::Wave_decoder(FILE *fp) :
 	Basic_decoder(),
 	_samples(),
 	_transp()
@@ -346,8 +345,7 @@ get_file_format(FILE *fp) {
 
 } // end anon
 
-flacsplit::Decoder::Decoder(const std::string &path, FILE *fp,
-    enum file_format format) :
+flacsplit::Decoder::Decoder(FILE *fp, file_format format) :
 	Basic_decoder(),
 	_decoder()
 {
@@ -357,7 +355,7 @@ flacsplit::Decoder::Decoder(const std::string &path, FILE *fp,
 	case file_format::UNKNOWN:
 		throw throw_traced(Bad_format());
 	case file_format::WAVE:
-		_decoder.reset(new Wave_decoder(path, fp));
+		_decoder.reset(new Wave_decoder(fp));
 		break;
 	case file_format::FLAC:
 		_decoder.reset(new Flac_decoder(fp));
