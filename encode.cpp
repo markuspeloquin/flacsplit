@@ -28,11 +28,6 @@
 
 namespace {
 
-// 10 sec at 44.1 kHz; I believe this is the default for flac(1); I don't want
-// to adjust it for each sample rate, since the point of the seekpoints is to
-// save on I/O, so increasing the sample rate should increase the seekpoints
-const unsigned SEEKPOINT_SAMPLES = 441000;
-
 class Flac_encoder :
     public FLAC::Encoder::File,
     public flacsplit::Basic_encoder {
@@ -47,7 +42,11 @@ public:
 		std::string _msg;
 	};
 
-	Flac_encoder(FILE *fp, const flacsplit::Music_info &, uint64_t=0);
+	Flac_encoder(
+	    FILE *fp,
+	    const flacsplit::Music_info &track,
+	    int64_t total_samples,
+	    int64_t sample_rate);
 
 	virtual ~Flac_encoder() {
 		if (_init)
@@ -93,7 +92,7 @@ private:
 };
 
 Flac_encoder::Flac_encoder(FILE *fp, const flacsplit::Music_info &track,
-    uint64_t total_samples) :
+    int64_t total_samples, int64_t sample_rate) :
 	FLAC::Encoder::File(),
 	Basic_encoder(),
 	_padding(),
@@ -107,16 +106,15 @@ Flac_encoder::Flac_encoder(FILE *fp, const flacsplit::Music_info &track,
 
 	if (total_samples) {
 		_seek_table.reset(new FLAC::Metadata::SeekTable);
-		// what braindead developer named these fucking things?
 #if FLACPP_API_VERSION_CURRENT <= 8
 		if (!FLAC__metadata_object_seektable_template_append_spaced_points_by_samples(
-		    cast_metadata(*_seek_table), SEEKPOINT_SAMPLES,
+		    cast_metadata(*_seek_table), sample_rate * 10,
 		    total_samples)) {
 			throw_traced(flacsplit::Unix_error(ENOMEM));
 		}
 #else
 		_seek_table->template_append_spaced_points_by_samples(
-		    SEEKPOINT_SAMPLES, total_samples);
+		    sample_rate * 10, total_samples);
 #endif
 	}
 	set_meta(track);
@@ -254,9 +252,16 @@ Flac_encoder::tell_callback(FLAC__uint64 *absolute_byte_offset) {
 
 } // end anon
 
-flacsplit::Encoder::Encoder(FILE *fp, const Music_info &track,
-    uint64_t total_samples, enum file_format format) {
-	if (format != file_format::FLAC)
+flacsplit::Encoder::Encoder(
+    FILE *fp,
+    const Music_info &track,
+    int64_t total_samples,
+    int64_t sample_rate,
+    enum file_format file_format
+) {
+	if (file_format != file_format::FLAC)
 		throw_traced(Bad_format());
-	_encoder.reset(new Flac_encoder(fp, track, total_samples));
+	_encoder.reset(new Flac_encoder(
+	    fp, track, total_samples, sample_rate
+	));
 }

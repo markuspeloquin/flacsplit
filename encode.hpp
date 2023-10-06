@@ -46,7 +46,11 @@ public:
 	};
 
 	//! \throw Bad_format
-	Encoder(FILE *, const Music_info &track, uint64_t total_samples=0,
+	Encoder(
+	    FILE *fp,
+	    const Music_info &track,
+	    int64_t total_samples,
+	    int64_t sample_rate,
 	    file_format=file_format::FLAC);
 
 	//! \throw Encode_error

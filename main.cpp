@@ -607,8 +607,12 @@ once(const std::string &cue_path, const struct options *options) {
 				track_samples = static_cast<int64_t>(
 				    samples + .5);
 
-				encoder.reset(new Encoder(outfp,
-				    *track_info[i], track_samples));
+				encoder.reset(new Encoder(
+				    outfp,
+				    *track_info[i],
+				    track_samples,
+				    frame.rate
+				));
 
 				rg_analyzer.reset(new replaygain::Analyzer(
 				    decoder->sample_rate()));
