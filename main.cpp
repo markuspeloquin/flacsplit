@@ -381,6 +381,22 @@ make_track_name(const flacsplit::Music_info &track, std::string &name) {
 	name = nameout.str();
 }
 
+struct track_offset {
+	track_offset(
+	    int64_t begin, int64_t end, int64_t pregap, unsigned track_number
+	) :
+		begin(begin),
+		end(end),
+		pregap(pregap),
+		track_number(track_number)
+	{}
+
+	int64_t begin;
+	int64_t end;
+	int64_t pregap;
+	unsigned track_number;
+};
+
 bool
 once(const std::string &cue_path, const struct options *options) {
 	using namespace flacsplit;
@@ -410,10 +426,7 @@ once(const std::string &cue_path, const struct options *options) {
 	album_info.date(date);
 
 	std::vector<std::shared_ptr<Music_info>> track_info;
-	std::vector<int64_t> begin;
-	std::vector<int64_t> end;
-	std::vector<int64_t> pregap;
-	std::vector<unsigned> track_numbers;
+	std::vector<track_offset> offsets;
 	unsigned tracks = cd_get_ntrack(cd);
 	for (unsigned i = 0; i < tracks; i++) {
 		Track *track = cd_get_track(cd, i+1);
@@ -428,43 +441,37 @@ once(const std::string &cue_path, const struct options *options) {
 			}
 		}
 
-		int32_t begin_ = track_get_start(track);
-		int32_t end_ = track_get_length(track);
-		if (end_) end_ += begin_;
-		int32_t pregap_ = track_get_index(track, 1);
+		int32_t begin = track_get_start(track);
+		int32_t end = track_get_length(track);
+		if (end) end += begin;
+		int32_t pregap = track_get_index(track, 1);
 
-		if (!i && pregap_ && options->hidden_track) {
+		if (!i && pregap && options->hidden_track) {
 			// XXX I am calling this track 0, which won't work
 			// right if there are multiple disks and this is not
 			// on the first; because I don't like the concept of
 			// disks
 			track_info.push_back(Music_info::create_hidden(
 			    album_info));
-			begin.push_back(0);
-			end.push_back(pregap_);
-			pregap.push_back(0);
-			track_numbers.push_back(0);
-			begin_ += pregap_;
-			pregap_ = 0;
+			offsets.push_back(track_offset(0, pregap, 0, 0));
+			begin += pregap;
+			pregap = 0;
 		}
 
 		track_info.push_back(std::make_shared<Music_info>(
 		    track_get_cdtext(track), album_info,
 		    offset + i + 1));
 
-		begin.push_back(begin_);
-		end.push_back(end_);
-		pregap.push_back(pregap_);
-		track_numbers.push_back(i + 1);
+		offsets.push_back(track_offset(begin, end, pregap, i+1));
 	}
 
 	// shift pregaps into preceding tracks
 	if (!options->switch_index)
-		for (unsigned i = 0; i < begin.size(); i++) {
+		for (size_t i = 0; i < offsets.size(); i++) {
 			if (i)
-				begin[i] += pregap[i];
-			if (i != begin.size()-1)
-				end[i] += pregap[i+1];
+				offsets[i].begin += offsets[i].pregap;
+			if (i != offsets.size()-1)
+				offsets[i].end += offsets[i+1].pregap;
 		}
 
 	std::vector<std::string> dir_components;
@@ -501,10 +508,12 @@ once(const std::string &cue_path, const struct options *options) {
 	int	dimens[] = { 0, 0 };
 
 	std::unique_ptr<Replaygain_stats> gain_stats(
-	    new Replaygain_stats[begin.size()]);
+	    new Replaygain_stats[offsets.size()]);
 
-	for (unsigned i = 0; i < track_numbers.size(); i++) {
-		unsigned track_number = track_numbers[i];
+	for (size_t i = 0; i < offsets.size(); i++) {
+		auto offset = offsets[i];
+
+		unsigned track_number = offset.track_number;
 		Track *track = track_number ? cd_get_track(cd, track_number) :
 		    cd_get_track(cd, 1);
 		std::string cur_path = cue_dir;
@@ -540,7 +549,7 @@ once(const std::string &cue_path, const struct options *options) {
 			}
 
 			int64_t last_track_frame =
-			    begin[track_numbers.size()-1];
+			    offsets[offsets.size()-1].begin;
 			double last_track_sample = last_track_frame *
 			    decoder->sample_rate() / 75.;
 			if (decoder->total_samples() <= last_track_sample) {
@@ -575,9 +584,9 @@ once(const std::string &cue_path, const struct options *options) {
 		// transcode
 		int64_t samples = 0;
 		int64_t track_samples = 0;
-		decoder->seek_frame(begin[i]);
+		decoder->seek_frame(offset.begin);
 		do {
-			bool allow_short = end[i] == 0;
+			bool allow_short = offset.end == 0;
 			Frame frame = decoder->next_frame(allow_short);
 			if (allow_short && !frame.samples)
 				break;
@@ -586,12 +595,12 @@ once(const std::string &cue_path, const struct options *options) {
 			// aren't known until after the first seek/process
 			if (!track_samples) {
 				double		samples;
-				if (end[i]) {
-					int64_t frames = end[i] - begin[i];
+				if (offset.end) {
+					int64_t frames = offset.end - offset.begin;
 					samples = frames *
 					    decoder->sample_rate() / 75.;
 				} else {
-					double begin_sample = begin[i] *
+					double begin_sample = offset.begin *
 					    decoder->sample_rate() / 75.;
 					if (decoder->total_samples() <=
 					    begin_sample) {
