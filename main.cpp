@@ -70,8 +70,8 @@ std::pair<std::string, std::string>
 		split_extension(const std::string &);
 std::pair<FILE *, std::string>
 		find_file(const std::string &, bool);
-void		get_cue_extra(const std::string &, std::string &out_genre,
-		    std::string &out_date, unsigned &out_offset);
+std::tuple<std::string, std::string, int64_t>
+		get_cue_extra(const std::string &);
 void		make_album_path(const flacsplit::Music_info &album,
 		    std::vector<std::string> &, std::string &);
 void		make_track_name(const flacsplit::Music_info &track,
@@ -282,9 +282,8 @@ frametime(int64_t frames) {
 #endif
 
 //! \throw flacsplit::Unix_error
-void
-get_cue_extra(const std::string &path, std::string &out_genre,
-    std::string &out_date, unsigned &out_offset) {
+std::tuple<std::string, std::string, int64_t>
+get_cue_extra(const std::string &path) {
 	std::ifstream in(path.c_str());
 	if (!in) {
 		std::ostringstream out;
@@ -335,9 +334,11 @@ get_cue_extra(const std::string &path, std::string &out_genre,
 		}
 	}
 
-	out_genre = flacsplit::iso8859_to_utf8(escape_cue_string(genre));
-	out_date = flacsplit::iso8859_to_utf8(escape_cue_string(date));
-	out_offset = offset;
+	return std::make_tuple(
+	    flacsplit::iso8859_to_utf8(escape_cue_string(genre)),
+	    flacsplit::iso8859_to_utf8(escape_cue_string(date)),
+	    offset
+	);
 }
 
 void
@@ -393,10 +394,7 @@ once(const std::string &cue_path, const struct options *options) {
 	std::string cue_name;
 	split_path(cue_path, cue_dir, cue_name);
 
-	std::string genre;
-	std::string date;
-	unsigned offset;
-	get_cue_extra(cue_path, genre, date, offset);
+	auto [genre, date, offset] = get_cue_extra(cue_path);
 
 	int format = CUE;
 	Cuetools_cd cd = cf_parse(const_cast<char *>(cue_path.c_str()),
