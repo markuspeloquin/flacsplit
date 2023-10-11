@@ -46,7 +46,7 @@ public:
 	    FILE *fp,
 	    const flacsplit::Music_info &track,
 	    int64_t total_samples,
-	    int64_t sample_rate);
+	    int32_t sample_rate);
 
 	virtual ~Flac_encoder() {
 		if (_init)
@@ -92,7 +92,7 @@ private:
 };
 
 Flac_encoder::Flac_encoder(FILE *fp, const flacsplit::Music_info &track,
-    int64_t total_samples, int64_t sample_rate) :
+    int64_t total_samples, int32_t sample_rate) :
 	FLAC::Encoder::File(),
 	Basic_encoder(),
 	_padding(),
@@ -256,7 +256,7 @@ flacsplit::Encoder::Encoder(
     FILE *fp,
     const Music_info &track,
     int64_t total_samples,
-    int64_t sample_rate,
+    int32_t sample_rate,
     file_format file_format
 ) {
 	if (file_format != file_format::FLAC)

@@ -278,10 +278,10 @@ find_file(const std::string &path, std::string &out_path, bool use_flac) {
 
 #if 0
 std::string
-frametime(uint32_t frames) {
-	uint16_t seconds = frames / 75;
+frametime(int64_t frames) {
+	int64_t seconds = frames / 75;
 	frames -= seconds * 75;
-	uint16_t minutes = seconds / 60;
+	int64_t minutes = seconds / 60;
 	seconds -= minutes * 60;
 
 	std::ostringstream out;

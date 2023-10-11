@@ -32,8 +32,8 @@ struct Frame {
 	const int32_t *const	*data;
 	int	bits_per_sample;
 	int	channels;
-	int	samples;
-	int	rate;
+	int64_t	samples;
+	int32_t	rate;
 };
 
 class Music_info {
