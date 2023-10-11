@@ -66,7 +66,8 @@ struct options {
 template <typename In>
 void		create_dirs(In begin, In end, const std::string *);
 std::string	escape_cue_string(const std::string &);
-bool		extension(const std::string &, std::string &, std::string &);
+std::pair<std::string, std::string>
+		split_extension(const std::string &);
 FILE		*find_file(const std::string &, std::string &, bool);
 void		get_cue_extra(const std::string &, std::string &out_genre,
 		    std::string &out_date, unsigned &out_offset);
@@ -224,23 +225,18 @@ escape_cue_string(const std::string &str) {
 	return out.str();
 }
 
-bool
-extension(const std::string &str, std::string &base, std::string &ext) {
+std::pair<std::string, std::string>
+split_extension(const std::string &str) {
 	size_t dot = str.rfind('.');
 	if (dot == std::string::npos)
-		return false;
-	base = str.substr(0, dot);
-	ext = str.substr(dot+1);
-	return true;
+		return std::make_pair(str, "");
+	return std::make_pair(str.substr(0, dot), str.substr(dot+1));
 }
 
 FILE *
 find_file(const std::string &path, std::string &out_path, bool use_flac) {
-	std::string	base;
-	std::string	ext;
 	std::string	guess;
 	FILE		*fp;
-	bool		have_ext;
 
 	if (!use_flac) {
 		fp = fopen(path.c_str(), "rb");
@@ -254,9 +250,7 @@ find_file(const std::string &path, std::string &out_path, bool use_flac) {
 	size_t num_guesses = sizeof(guesses) / sizeof(*guesses);
 	if (use_flac) std::swap(guesses[0], guesses[1]);
 
-	have_ext = extension(path, base, ext);
-	if (!have_ext)
-		base = path;
+	auto [base, ext] = split_extension(path);
 
 	for (size_t i = 0; i < num_guesses; i++) {
 		std::string suf(guesses[i]);
