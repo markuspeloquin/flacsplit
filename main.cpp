@@ -74,8 +74,7 @@ std::tuple<std::string, std::string, int64_t>
 		get_cue_extra(const std::string &);
 std::pair<std::vector<std::string>, std::string>
 		make_album_path(const flacsplit::Music_info &album);
-void		make_track_name(const flacsplit::Music_info &track,
-		    std::string &);
+std::string	make_track_name(const flacsplit::Music_info &track);
 bool		once(const std::string &, const struct options *);
 void		split_path(const std::string &, std::string &, std::string &);
 void		transform_sample_fmt(const Frame &, double **);
@@ -358,13 +357,13 @@ make_album_path(const flacsplit::Music_info &album) {
 	return std::make_pair(path_vec, pathout.str());
 }
 
-void
-make_track_name(const flacsplit::Music_info &track, std::string &name) {
+std::string
+make_track_name(const flacsplit::Music_info &track) {
 	std::ostringstream nameout;
 	nameout << std::setfill('0') << std::setw(2)
 	    << static_cast<int>(track.track())
 	    << ' ' << sanitize(track.title());
-	name = nameout.str();
+	return nameout.str();
 }
 
 struct track_offset {
@@ -544,9 +543,8 @@ once(const std::string &cue_path, const struct options *options) {
 			}
 		}
 
-		std::string out_name;
-		make_track_name(*track_info[i], out_name);
-		out_name = dir_path + out_name;
+		std::string out_name = dir_path;
+		out_name += make_track_name(*track_info[i]);
 		out_name += ".flac";
 		out_paths.push_back(out_name);
 
