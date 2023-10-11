@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -48,36 +49,78 @@ const char *prog;
 namespace flacsplit {
 namespace {
 
-struct options {
-	const std::string	*out_dir;
-	bool			hidden_track;
-	bool			switch_index;
-	bool			use_flac;
+class File_handle {
+public:
+	File_handle() : _fp(nullptr) {}
+	File_handle(FILE *fp) : _fp(fp) {}
 
-	options(const std::string *out_dir, bool hidden_track,
-	    bool switch_index, bool use_flac) :
-		out_dir(out_dir),
-		hidden_track(hidden_track),
-		switch_index(switch_index),
-		use_flac(use_flac)
-	{}
+	File_handle(File_handle &&rhs) {
+		std::swap(rhs._fp, _fp);
+	}
+	File_handle(const File_handle &) = delete;
+
+	~File_handle() {
+		if (_fp) fclose(_fp);
+	}
+
+	//! \throw flacsplit::Unix_error
+	File_handle &operator=(FILE *fp) {
+		close();
+		_fp = fp;
+		return *this;
+	}
+
+	File_handle &operator=(File_handle &&rhs) {
+		std::swap(rhs._fp, _fp);
+		return *this;
+	}
+	void operator=(const File_handle &) = delete;
+
+	//! \throw flacsplit::Unix_error
+	void close() {
+		if (_fp) {
+			if (fclose(_fp) != 0)
+				throw_traced(Unix_error("closing file"));
+			_fp = nullptr;
+		}
+	}
+
+	FILE *release() {
+		FILE *fp = _fp;
+		_fp = nullptr;
+		return fp;
+	}
+
+	operator FILE *() {
+		return _fp;
+	}
+
+	operator bool() const {
+		return _fp;
+	}
+
+private:
+	FILE *_fp;
+};
+
+struct options {
+	const std::filesystem::path	out_dir;
+	bool	hidden_track;
+	bool	switch_index;
+	bool	use_flac;
 };
 
 template <typename In>
-void		create_dirs(In begin, In end, const std::string *);
+void		create_dirs(In begin, In end, const std::filesystem::path &);
 std::string	escape_cue_string(const std::string &);
-std::pair<std::string, std::string>
-		split_extension(const std::string &);
-std::pair<FILE *, std::string>
-		find_file(const std::string &, bool);
+std::pair<File_handle, std::filesystem::path>
+		find_file(const std::filesystem::path &, bool use_flac);
 std::tuple<std::string, std::string, int64_t>
-		get_cue_extra(const std::string &);
-std::pair<std::vector<std::string>, std::string>
+		get_cue_extra(const std::filesystem::path &);
+std::pair<std::vector<std::filesystem::path>, std::filesystem::path>
 		make_album_path(const flacsplit::Music_info &album);
 std::string	make_track_name(const flacsplit::Music_info &track);
-bool		once(const std::string &, const struct options *);
-std::pair<std::string, std::string>
-		split_path(const std::string &);
+bool		once(const std::filesystem::path &, const struct options *);
 void		transform_sample_fmt(const Frame &, double **);
 void		usage(const boost::program_options::options_description &);
 
@@ -113,74 +156,28 @@ private:
 	Cd *_cd;
 };
 
-class File_handle {
-public:
-	File_handle() : _fp(nullptr) {}
-
-	File_handle(FILE *fp) : _fp(fp) {}
-
-	~File_handle() {
-		if (_fp) fclose(_fp);
-	}
-
-	//! \throw flacsplit::Unix_error
-	File_handle &operator=(FILE *fp) {
-		close();
-		_fp = fp;
-		return *this;
-	}
-
-	//! \throw flacsplit::Unix_error
-	void close() {
-		if (_fp) {
-			if (fclose(_fp) != 0)
-				throw_traced(Unix_error("closing file"));
-			_fp = nullptr;
-		}
-	}
-
-	FILE *release() {
-		FILE *fp = _fp;
-		_fp = nullptr;
-		return fp;
-	}
-
-	operator FILE *() {
-		return _fp;
-	}
-
-	operator bool() const {
-		return _fp;
-	}
-
-private:
-	FILE *_fp;
-};
-
 //! \throw flacsplit::Unix_error
 template <typename In>
 void
-create_dirs(In begin, In end, const std::string *out_dir) {
-	std::ostringstream out;
+create_dirs(In begin, In end, const std::filesystem::path &out_dir) {
+	std::filesystem::path cur_dir;
 	bool first = true;
 	while (begin != end) {
 		if (first) {
-			if (out_dir && !out_dir->empty()) {
-				out << *out_dir;
-				if ((*out_dir)[out_dir->size()-1] != '/')
-					out << '/';
-			}
-			out << *begin;
+			if (out_dir.empty())
+				cur_dir = *begin;
+			else
+				cur_dir = out_dir / *begin;
 			first = false;
 		} else
-			out << '/' << *begin;
+			cur_dir /= *begin;
 		++begin;
 
 		struct stat st;
-		if (stat(out.str().c_str(), &st) == -1) {
+		if (stat(cur_dir.c_str(), &st) == -1) {
 			if (errno != ENOENT) {
 				std::ostringstream eout;
-				eout << "stat `" << out.str() << "' failed";
+				eout << "stat " << cur_dir << " failed";
 				throw_traced(flacsplit::Unix_error(
 				    eout.str()
 				));
@@ -188,10 +185,10 @@ create_dirs(In begin, In end, const std::string *out_dir) {
 		} else if (S_ISDIR(st.st_mode))
 			continue;
 
-		if (mkdir(out.str().c_str(),
-		    S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) == -1) {
+		mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+		if (mkdir(cur_dir.c_str(), mode) == -1) {
 			std::ostringstream eout;
-			eout << "mkdir `" << out.str() << "' failed";
+			eout << "mkdir `" << cur_dir << "' failed";
 			throw_traced(flacsplit::Unix_error(eout.str()));
 		}
 	}
@@ -226,42 +223,25 @@ escape_cue_string(const std::string &str) {
 	return out.str();
 }
 
-std::pair<std::string, std::string>
-split_extension(const std::string &str) {
-	size_t dot = str.rfind('.');
-	if (dot == std::string::npos)
-		return std::make_pair(str, "");
-	return std::make_pair(str.substr(0, dot), str.substr(dot+1));
-}
-
-std::pair<FILE *, std::string>
-find_file(const std::string &path, bool use_flac) {
-	if (!use_flac) {
-		FILE *fp = fopen(path.c_str(), "rb");
-		if (fp || errno != ENOENT)
-			return std::make_pair(fp, path);
-	}
-
-	const char *guesses[] = { "wav", "flac" };
+std::pair<File_handle, std::filesystem::path>
+find_file(const std::filesystem::path &src_path, bool use_flac) {
+	const char *guesses[] = { ".wav", ".flac" };
 	size_t num_guesses = sizeof(guesses) / sizeof(*guesses);
 	if (use_flac) std::swap(guesses[0], guesses[1]);
-
-	auto [base, ext] = split_extension(path);
 
 	for (size_t i = 0; i < num_guesses; i++) {
 		auto &suf = guesses[i];
 
-		std::string guess = base;
-		guess += '.';
-		guess += suf;
-		FILE *fp = fopen(guess.c_str(), "rb");
+		auto guess = src_path;
+		guess.replace_extension(suf);
+		File_handle fp = fopen(guess.c_str(), "rb");
 		if (fp || errno != ENOENT)
-			return std::make_pair(fp, guess);
+			return std::make_pair(std::move(fp), guess);
 	}
 
 	if (errno != ENOENT)
 		throw_traced(std::runtime_error("bad errno"));
-	return std::make_pair(nullptr, path);
+	return std::make_pair(File_handle{}, src_path);
 }
 
 #if 0
@@ -283,11 +263,11 @@ frametime(int64_t frames) {
 
 //! \throw flacsplit::Unix_error
 std::tuple<std::string, std::string, int64_t>
-get_cue_extra(const std::string &path) {
-	std::ifstream in(path.c_str());
+get_cue_extra(const std::filesystem::path &p) {
+	std::ifstream in(p.c_str());
 	if (!in) {
 		std::ostringstream out;
-		out << "opening `" << path << '\'';
+		out << "opening `" << p << '\'';
 		throw_traced(flacsplit::Unix_error(out.str()));
 	}
 
@@ -303,7 +283,7 @@ get_cue_extra(const std::string &path) {
 		std::getline(in, line);
 		if (in.bad()) {
 			std::ostringstream out;
-			out << "reading `" << path << '\'';
+			out << "reading `" << p << '\'';
 			throw_traced(flacsplit::Unix_error(out.str()));
 		} else if (in.eof())
 			break;
@@ -341,21 +321,18 @@ get_cue_extra(const std::string &path) {
 	);
 }
 
-std::pair<std::vector<std::string>, std::string>
+std::pair<std::vector<std::filesystem::path>, std::filesystem::path>
 make_album_path(const flacsplit::Music_info &album) {
-	std::vector<std::string> path_vec;
+	std::vector<std::filesystem::path> path_vec;
 
-	path_vec.push_back(album.artist());
-	path_vec.push_back(album.album());
-	if (path_vec.back().empty())
-		path_vec.back() = "no album";
+	path_vec.push_back(sanitize(album.artist()));
+	auto &album_name = album.album();
+	if (album_name.empty())
+		path_vec.push_back("no album");
+	else
+		path_vec.push_back(sanitize(album_name));
 
-	for (auto &x : path_vec) x = sanitize(x);
-
-	std::ostringstream pathout;
-	pathout << path_vec[0] << '/' << path_vec[1];
-
-	return std::make_pair(path_vec, pathout.str());
+	return std::make_pair(path_vec, path_vec[0] / path_vec[1]);
 }
 
 std::string
@@ -368,15 +345,6 @@ make_track_name(const flacsplit::Music_info &track) {
 }
 
 struct track_offset {
-	track_offset(
-	    int64_t begin, int64_t end, int64_t pregap, unsigned track_number
-	) :
-		begin(begin),
-		end(end),
-		pregap(pregap),
-		track_number(track_number)
-	{}
-
 	int64_t begin;
 	int64_t end;
 	int64_t pregap;
@@ -384,15 +352,14 @@ struct track_offset {
 };
 
 bool
-once(const std::string &cue_path, const struct options *options) {
+once(const std::filesystem::path &cue_path, const struct options *options) {
 	using namespace flacsplit;
 
-	auto [cue_dir, cue_name] = split_path(cue_path);
+	auto cue_dir = cue_path.parent_path();
 	auto [genre, date, offset] = get_cue_extra(cue_path);
 
-	int format = CUE;
-	Cuetools_cd cd = cf_parse(const_cast<char *>(cue_path.c_str()),
-	    &format);
+	int fmt = CUE;
+	Cuetools_cd cd = cf_parse(const_cast<char *>(cue_path.c_str()), &fmt);
 	if (!cd) {
 		std::cerr << prog << ": parse failed\n";
 		return false;
@@ -411,14 +378,12 @@ once(const std::string &cue_path, const struct options *options) {
 	for (unsigned i = 0; i < tracks; i++) {
 		Track *track = cd_get_track(cd, i+1);
 		if (track_get_mode(track) != MODE_AUDIO) {
-			if (i == tracks-1)
-				break;
-			else {
-				// this is possible, but I won't handle it
-				throw_traced(std::runtime_error(
-				    "mixed track types... screw this"
-				));
-			}
+			if (i == tracks-1) break;
+
+			// this is possible, but I won't handle it
+			throw_traced(std::runtime_error(
+			    "mixed track types... screw this"
+			));
 		}
 
 		int32_t begin = track_get_start(track);
@@ -433,7 +398,7 @@ once(const std::string &cue_path, const struct options *options) {
 			// disks
 			track_info.push_back(Music_info::create_hidden(
 			    album_info));
-			offsets.push_back(track_offset(0, pregap, 0, 0));
+			offsets.push_back(track_offset{0, pregap, 0, 0});
 			begin += pregap;
 			pregap = 0;
 		}
@@ -442,7 +407,7 @@ once(const std::string &cue_path, const struct options *options) {
 		    track_get_cdtext(track), album_info,
 		    offset + i + 1));
 
-		offsets.push_back(track_offset(begin, end, pregap, i+1));
+		offsets.push_back(track_offset{begin, end, pregap, i+1});
 	}
 
 	// shift pregaps into preceding tracks
@@ -459,23 +424,12 @@ once(const std::string &cue_path, const struct options *options) {
 	    options->out_dir);
 
 	// construct base of output pathnames
-	if (options->out_dir) {
-		std::ostringstream out;
-		if (*options->out_dir != "") {
-			out << *options->out_dir;
-			char last = (*options->out_dir)[
-			    options->out_dir->size()-1];
-			if (last != '/')
-				out << '/';
-		}
-		out << dir_path << '/';
-		dir_path = out.str();
-	} else
-		dir_path += '/';
+	if (!options->out_dir.empty())
+		dir_path = options->out_dir / dir_path;
 
-	std::string path;
+	std::filesystem::path src_path;
 	std::unique_ptr<Decoder> decoder;
-	std::vector<std::string> out_paths;
+	std::vector<std::filesystem::path> out_paths;
 
 	// for replaygain analysis
 	replaygain::Sample_accum		rg_accum;
@@ -493,26 +447,25 @@ once(const std::string &cue_path, const struct options *options) {
 		unsigned track_number = offset.track_number;
 		Track *track = track_number ? cd_get_track(cd, track_number) :
 		    cd_get_track(cd, 1);
-		std::string cur_path = cue_dir;
-		if (!cur_path.empty())
-			cur_path += '/';
-		cur_path += track_get_filename(track);
+		std::filesystem::path cur_path = cue_dir;
+		cur_path /= track_get_filename(track);
 
-		if (!decoder || cur_path != path) {
+		if (!decoder || cur_path != src_path) {
 			// switch file
 
-			path = cur_path;
-			auto [fp, derived_path] = find_file(path, options->use_flac);
-			File_handle in_file = fp;
+			src_path = cur_path;
+			auto [in_file, derived_path] = find_file(
+			    src_path, options->use_flac
+			);
 			if (!in_file) {
-				std::cerr << prog << ": open `"
+				std::cerr << prog << ": open "
 				    << derived_path
-				    << "' failed: " << strerror(errno)
+				    << " failed: " << strerror(errno)
 				    << '\n';
 				return false;
 			}
 
-			std::cout << "< " << derived_path << '\n';
+			std::cout << "< " << derived_path.c_str() << '\n';
 
 			try {
 				decoder.reset(new Decoder(in_file));
@@ -541,17 +494,17 @@ once(const std::string &cue_path, const struct options *options) {
 			}
 		}
 
-		std::string out_name = dir_path;
-		out_name += make_track_name(*track_info[i]);
+		std::filesystem::path out_name = dir_path;
+		out_name /= make_track_name(*track_info[i]);
 		out_name += ".flac";
 		out_paths.push_back(out_name);
 
-		std::cout << "> " << out_name << '\n';
+		std::cout << "> " << out_name.c_str() << '\n';
 
-		FILE *outfp;
-		if (!(outfp = fopen(out_name.c_str(), "wb"))) {
+		File_handle out_file;
+		if (!(out_file = fopen(out_name.c_str(), "wb"))) {
 			std::ostringstream out;
-			out << "open `" << out_name << "' failed";
+			out << "open " << out_name << " failed";
 			throw_traced(Unix_error(out.str()));
 		}
 
@@ -592,7 +545,7 @@ once(const std::string &cue_path, const struct options *options) {
 				    samples + .5);
 
 				encoder.reset(new Encoder(
-				    outfp,
+				    out_file,
 				    *track_info[i],
 				    track_samples,
 				    frame.rate
@@ -648,32 +601,19 @@ once(const std::string &cue_path, const struct options *options) {
 		File_handle outfp(fopen(out_paths[i].c_str(), "r+b"));
 		if (!outfp) {
 			std::ostringstream out;
-			out << "open `" << out_paths[i] << "' failed";
+			out << "open " << out_paths[i] << " failed";
 			throw_traced(Unix_error(out.str()));
 		}
 
 		Replaygain_writer writer(outfp);
 		writer.add_replaygain(gain_stats.get()[i]);
 		if (writer.check_if_tempfile_needed())
-			std::cerr << prog << ": padding exhausted for `"
-			    << out_paths[i] << "', using temp file\n";
+			std::cerr << prog << ": padding exhausted for "
+			    << out_paths[i] << ", using temp file\n";
 		writer.save();
 	}
 
 	return true;
-}
-
-std::pair<std::string, std::string>
-split_path(const std::string &path) {
-	size_t slash = path.rfind("/");
-	if (slash == 0)
-		return std::make_pair("/", path.substr(1));
-	else if (slash == std::string::npos)
-		return std::make_pair("", path);
-	else if (slash == path.size()-1)
-		// path ends in '/', so strip '/' and try again
-		return split_path(path.substr(0, slash));
-	return std::make_pair(path.substr(0, slash), path.substr(slash + 1));
 }
 
 void
@@ -764,27 +704,25 @@ main(int argc, char **argv) {
 			usage(visible_desc);
 			return 1;
 		}
-		cuefiles = opt.as<std::vector<std::string> >();
+		cuefiles = opt.as<std::vector<std::string>>();
 	}
 
-	std::unique_ptr<std::string> out_dir;
+	std::string out_dir;
 	{
 		const po::variable_value &opt = var_map["outdir"];
 		if (!opt.empty())
-			out_dir.reset(new std::string(opt.as<std::string>()));
+			out_dir = opt.as<std::string>();
 	}
 
 	bool hidden_track = !var_map["hidden_track"].empty();
 	bool switch_index = !var_map["switch_index"].empty();
 	bool use_flac = !var_map["use_flac"].empty();
 
-	struct options opts(out_dir.get(), hidden_track, switch_index,
-	    use_flac);
+	options opts = {out_dir, hidden_track, switch_index, use_flac};
 
-	for (std::vector<std::string>::iterator i = cuefiles.begin();
-	    i != cuefiles.end(); ++i) {
+	for (auto &cuefile : cuefiles) {
 		try {
-			if (!once(*i, &opts))
+			if (!once(cuefile, &opts))
 				return 1;
 		} catch (const std::exception &e) {
 			std::cerr << prog << ": "  << e.what() << '\n';
