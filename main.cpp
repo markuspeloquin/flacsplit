@@ -76,7 +76,8 @@ std::pair<std::vector<std::string>, std::string>
 		make_album_path(const flacsplit::Music_info &album);
 std::string	make_track_name(const flacsplit::Music_info &track);
 bool		once(const std::string &, const struct options *);
-void		split_path(const std::string &, std::string &, std::string &);
+std::pair<std::string, std::string>
+		split_path(const std::string &);
 void		transform_sample_fmt(const Frame &, double **);
 void		usage(const boost::program_options::options_description &);
 
@@ -386,10 +387,7 @@ bool
 once(const std::string &cue_path, const struct options *options) {
 	using namespace flacsplit;
 
-	std::string cue_dir;
-	std::string cue_name;
-	split_path(cue_path, cue_dir, cue_name);
-
+	auto [cue_dir, cue_name] = split_path(cue_path);
 	auto [genre, date, offset] = get_cue_extra(cue_path);
 
 	int format = CUE;
@@ -665,23 +663,17 @@ once(const std::string &cue_path, const struct options *options) {
 	return true;
 }
 
-void
-split_path(const std::string &path, std::string &dirname,
-    std::string &basename) {
+std::pair<std::string, std::string>
+split_path(const std::string &path) {
 	size_t slash = path.rfind("/");
-	if (slash == 0) {
-		dirname = "/";
-		basename = path.substr(1);
-	} else if (slash == std::string::npos) {
-		dirname = "";
-		basename = path;
-	} else if (slash == path.size()-1) {
+	if (slash == 0)
+		return std::make_pair("/", path.substr(1));
+	else if (slash == std::string::npos)
+		return std::make_pair("", path);
+	else if (slash == path.size()-1)
 		// path ends in '/', so strip '/' and try again
-		split_path(path.substr(0, slash), dirname, basename);
-	} else {
-		dirname = path.substr(0, slash);
-		basename = path.substr(slash + 1);
-	}
+		return split_path(path.substr(0, slash));
+	return std::make_pair(path.substr(0, slash), path.substr(slash + 1));
 }
 
 void
