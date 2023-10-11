@@ -72,8 +72,8 @@ std::pair<FILE *, std::string>
 		find_file(const std::string &, bool);
 std::tuple<std::string, std::string, int64_t>
 		get_cue_extra(const std::string &);
-void		make_album_path(const flacsplit::Music_info &album,
-		    std::vector<std::string> &, std::string &);
+std::pair<std::vector<std::string>, std::string>
+		make_album_path(const flacsplit::Music_info &album);
 void		make_track_name(const flacsplit::Music_info &track,
 		    std::string &);
 bool		once(const std::string &, const struct options *);
@@ -341,9 +341,8 @@ get_cue_extra(const std::string &path) {
 	);
 }
 
-void
-make_album_path(const flacsplit::Music_info &album,
-    std::vector<std::string> &out_path_vec, std::string &out_path) {
+std::pair<std::vector<std::string>, std::string>
+make_album_path(const flacsplit::Music_info &album) {
 	std::vector<std::string> path_vec;
 
 	path_vec.push_back(album.artist());
@@ -351,14 +350,12 @@ make_album_path(const flacsplit::Music_info &album,
 	if (path_vec.back().empty())
 		path_vec.back() = "no album";
 
-	path_vec[0] = sanitize(path_vec[0]);
-	path_vec[1] = sanitize(path_vec[1]);
+	for (auto &x : path_vec) x = sanitize(x);
 
 	std::ostringstream pathout;
 	pathout << path_vec[0] << '/' << path_vec[1];
 
-	std::swap(path_vec, out_path_vec);
-	out_path = pathout.str();
+	return std::make_pair(path_vec, pathout.str());
 }
 
 void
@@ -460,9 +457,7 @@ once(const std::string &cue_path, const struct options *options) {
 				offsets[i].end += offsets[i+1].pregap;
 		}
 
-	std::vector<std::string> dir_components;
-	std::string dir_path;
-	make_album_path(album_info, dir_components, dir_path);
+	auto [dir_components, dir_path] = make_album_path(album_info);
 	create_dirs(dir_components.begin(), dir_components.end(),
 	    options->out_dir);
 
