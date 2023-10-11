@@ -68,7 +68,8 @@ void		create_dirs(In begin, In end, const std::string *);
 std::string	escape_cue_string(const std::string &);
 std::pair<std::string, std::string>
 		split_extension(const std::string &);
-FILE		*find_file(const std::string &, std::string &, bool);
+std::pair<FILE *, std::string>
+		find_file(const std::string &, bool);
 void		get_cue_extra(const std::string &, std::string &out_genre,
 		    std::string &out_date, unsigned &out_offset);
 void		make_album_path(const flacsplit::Music_info &album,
@@ -233,17 +234,12 @@ split_extension(const std::string &str) {
 	return std::make_pair(str.substr(0, dot), str.substr(dot+1));
 }
 
-FILE *
-find_file(const std::string &path, std::string &out_path, bool use_flac) {
-	std::string	guess;
-	FILE		*fp;
-
+std::pair<FILE *, std::string>
+find_file(const std::string &path, bool use_flac) {
 	if (!use_flac) {
-		fp = fopen(path.c_str(), "rb");
-		if (fp || errno != ENOENT) {
-			out_path = path;
-			return fp;
-		}
+		FILE *fp = fopen(path.c_str(), "rb");
+		if (fp || errno != ENOENT)
+			return std::make_pair(fp, path);
 	}
 
 	const char *guesses[] = { "wav", "flac" };
@@ -253,21 +249,19 @@ find_file(const std::string &path, std::string &out_path, bool use_flac) {
 	auto [base, ext] = split_extension(path);
 
 	for (size_t i = 0; i < num_guesses; i++) {
-		std::string suf(guesses[i]);
-		guess = base;
+		auto &suf = guesses[i];
+
+		std::string guess = base;
 		guess += '.';
 		guess += suf;
-		fp = fopen(guess.c_str(), "rb");
-		if (fp || errno != ENOENT) {
-			out_path = guess;
-			return fp;
-		}
+		FILE *fp = fopen(guess.c_str(), "rb");
+		if (fp || errno != ENOENT)
+			return std::make_pair(fp, guess);
 	}
 
 	if (errno != ENOENT)
 		throw_traced(std::runtime_error("bad errno"));
-	out_path = path;
-	return nullptr;
+	return std::make_pair(nullptr, path);
 }
 
 #if 0
@@ -490,7 +484,6 @@ once(const std::string &cue_path, const struct options *options) {
 		dir_path += '/';
 
 	std::string path;
-	std::string derived_path;
 	std::unique_ptr<Decoder> decoder;
 	std::vector<std::string> out_paths;
 
@@ -519,8 +512,8 @@ once(const std::string &cue_path, const struct options *options) {
 			// switch file
 
 			path = cur_path;
-			File_handle in_file = find_file(path, derived_path,
-			    options->use_flac);
+			auto [fp, derived_path] = find_file(path, options->use_flac);
+			File_handle in_file = fp;
 			if (!in_file) {
 				std::cerr << prog << ": open `"
 				    << derived_path
