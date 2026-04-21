@@ -2,7 +2,7 @@
 #define ERRORS_HPP
 
 #include <exception>
-#include <sstream>
+#include <format>
 #include <string>
 
 #include <boost/exception/all.hpp>
@@ -44,9 +44,7 @@ struct Sndfile_error : std::exception {
 	}
 
 	Sndfile_error(const std::string &msg, int errnum) : errnum(errnum) {
-		std::ostringstream out;
-		out << msg << ": " << sf_error_number(errnum);
-		this->msg = out.str();
+		this->msg = std::format("{}: {}", msg, sf_error_number(errnum));
 	}
 
 	const char *what() const noexcept override {

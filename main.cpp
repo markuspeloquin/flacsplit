@@ -8,11 +8,10 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <format>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <memory>
-#include <sstream>
 #include <vector>
 
 #include <boost/program_options/options_description.hpp>
@@ -162,20 +161,16 @@ create_dirs(In begin, In end, const std::filesystem::path &out_dir) {
 		struct stat st;
 		if (stat(cur_dir.c_str(), &st) == -1) {
 			if (errno != ENOENT) {
-				std::ostringstream eout;
-				eout << "stat " << cur_dir << " failed";
-				throw_traced(flacsplit::Unix_error(
-				    eout.str()
-				));
+				throw_traced(flacsplit::Unix_error(std::format(
+				    "stat `{}' failed", cur_dir.c_str())));
 			}
 		} else if (S_ISDIR(st.st_mode))
 			continue;
 
 		mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
 		if (mkdir(cur_dir.c_str(), mode) == -1) {
-			std::ostringstream eout;
-			eout << "mkdir `" << cur_dir << "' failed";
-			throw_traced(flacsplit::Unix_error(eout.str()));
+			throw_traced(flacsplit::Unix_error(std::format(
+			    "mkdir `{}' failed", cur_dir.c_str())));
 		}
 	}
 }
@@ -195,18 +190,19 @@ escape_cue_string(const std::string &str) {
 	else
 		begin = 1;
 
-	std::ostringstream out;
-	for (size_t i = begin; i < str.size(); i++)
-		if (str[i] == '\\')
+	std::string out;
+	for (size_t i = begin; i < str.size(); i++) {
+		if (str[i] == '\\') {
 			if (i == str.size() - 1)
-				out << '\\';
+				out += '\\';
 			else
-				out << str[++i];
-		else if (str[i] == quote)
+				out += str[++i];
+		} else if (str[i] == quote)
 			break;
 		else
-			out << str[i];
-	return out.str();
+			out += str[i];
+	}
+	return out;
 }
 
 std::pair<File_handle, std::filesystem::path>
@@ -238,12 +234,7 @@ frametime(int64_t frames) {
 	int64_t minutes = seconds / 60;
 	seconds -= minutes * 60;
 
-	std::ostringstream out;
-	out << std::setfill('0')
-	    << std::setw(2) << minutes << ':'
-	    << std::setw(2) << seconds << ':'
-	    << std::setw(2) << frames;
-	return out.str();
+	return std::format("{:02}:{:02}:{:02}", minutes, seconds, frames);
 }
 #endif
 
@@ -252,9 +243,8 @@ std::tuple<std::string, std::string, int64_t>
 get_cue_extra(const std::filesystem::path &p) {
 	std::ifstream in(p.c_str());
 	if (!in) {
-		std::ostringstream out;
-		out << "opening `" << p << '\'';
-		throw_traced(flacsplit::Unix_error(out.str()));
+		throw_traced(flacsplit::Unix_error(std::format(
+		    "opening `{}'", p.c_str())));
 	}
 
 	const std::string DATE = "REM DATE ";
@@ -268,9 +258,8 @@ get_cue_extra(const std::filesystem::path &p) {
 	for (;;) {
 		std::getline(in, line);
 		if (in.bad()) {
-			std::ostringstream out;
-			out << "reading `" << p << '\'';
-			throw_traced(flacsplit::Unix_error(out.str()));
+			throw_traced(flacsplit::Unix_error(std::format(
+			    "reading `{}'", p.c_str())));
 		} else if (in.eof())
 			break;
 
@@ -323,11 +312,7 @@ make_album_path(const flacsplit::Music_info &album) {
 
 std::string
 make_track_name(const flacsplit::Music_info &track) {
-	std::ostringstream nameout;
-	nameout << std::setfill('0') << std::setw(2)
-	    << static_cast<int>(track.track())
-	    << ' ' << sanitize(track.title());
-	return nameout.str();
+	return std::format("{:02d} {}", track.track(), sanitize(track.title()));
 }
 
 struct track_offset {
@@ -468,14 +453,12 @@ once(const std::filesystem::path &cue_path, const struct options *options) {
 			double last_track_sample = last_track_frame *
 			    decoder->sample_rate() / 75.;
 			if (decoder->total_samples() <= last_track_sample) {
-				std::ostringstream eout;
-				eout << "file `" << derived_path
-				    << "' does not contain enough samples;"
-				    << " expected at least "
-				    << last_track_sample
-				    << " but found "
-				    << decoder->total_samples();
-				throw_traced(Not_enough_samples(eout.str()));
+				throw_traced(Not_enough_samples(std::format(
+				    "file `{}' does not contain enough samples"
+				    "; expected at least {} but found {}",
+				    derived_path.c_str(),
+				    last_track_sample,
+				    decoder->total_samples())));
 			}
 		}
 
@@ -488,9 +471,8 @@ once(const std::filesystem::path &cue_path, const struct options *options) {
 
 		File_handle out_file;
 		if (!(out_file = fopen(out_name.c_str(), "wb"))) {
-			std::ostringstream out;
-			out << "open " << out_name << " failed";
-			throw_traced(Unix_error(out.str()));
+			throw_traced(Unix_error(std::format(
+			    "open `{}' failed", out_name.c_str())));
 		}
 
 		std::shared_ptr<Encoder> encoder;
@@ -582,9 +564,8 @@ once(const std::filesystem::path &cue_path, const struct options *options) {
 		// I hate these stupid mode strings; "r+b" = O_RDWR, binary
 		File_handle outfp(fopen(out_paths[i].c_str(), "r+b"));
 		if (!outfp) {
-			std::ostringstream out;
-			out << "open " << out_paths[i] << " failed";
-			throw_traced(Unix_error(out.str()));
+			throw_traced(Unix_error(std::format(
+			    "open `{}' failed", out_paths[i].c_str())));
 		}
 
 		Replaygain_writer writer(outfp);

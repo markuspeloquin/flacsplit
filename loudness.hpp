@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <exception>
-#include <sstream>
+#include <format>
 #include <string>
 #include <vector>
 
@@ -16,11 +16,9 @@ const double EBUR128_REFERENCE = -18.0;
 struct Ebur128_error : std::exception {
 	Ebur128_error(int errnum) : Ebur128_error("ebur128", errnum) {}
 
-	Ebur128_error(const std::string &msg, int errnum) : errnum(errnum) {
-		std::ostringstream out;
-		out << msg << ": " << message(errnum);
-		this->msg = out.str();
-	}
+	Ebur128_error(const std::string &msg, int errnum) :
+		errnum(errnum),
+		msg(std::format("{}: {}", msg, message(errnum))) {}
 
 	const char *what() const noexcept override {
 		return msg.c_str();

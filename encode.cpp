@@ -1,6 +1,5 @@
 #include <cstdint>
 #include <memory>
-#include <sstream>
 
 #include <FLAC++/encoder.h>
 #include <FLAC/format.h>
@@ -154,10 +153,8 @@ Flac_encoder::set_meta(const flacsplit::Music_info &track,
 		_tag.append_comment(VorbisComment::Entry(
 		    "TITLE", title.c_str()));
 	if (tracknum) {
-		std::ostringstream out;
-		out << static_cast<int>(tracknum);
 		_tag.append_comment(VorbisComment::Entry(
-		    "TRACKNUMBER", out.str().c_str()));
+		    "TRACKNUMBER", std::to_string(track.track()).c_str()));
 	}
 
 	if (add_replaygain_padding) {

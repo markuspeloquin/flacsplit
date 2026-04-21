@@ -1,9 +1,7 @@
 #include <cstdio>
 #include <cstring>
-#include <iomanip>
-#include <iostream>
+#include <format>
 #include <memory>
-#include <sstream>
 
 #include <FLAC++/metadata.h>
 
@@ -229,32 +227,11 @@ flacsplit::append_replaygain_tags(FLAC::Metadata::VorbisComment &comment,
     const flacsplit::Replaygain_stats &gain_stats) {
 	using FLAC::Metadata::VorbisComment;
 
-	std::ostringstream formatter;
-	formatter << std::fixed;
-
-	formatter << std::setprecision(2) << std::showpos
-	    << gain_stats.album_gain() << " dB";
-	std::string album_gain = formatter.str();
-
-	formatter.str("");
-	formatter << std::setprecision(8) << std::noshowpos
-	    << gain_stats.album_peak();
-	std::string album_peak = formatter.str();
-
-	formatter.str("");
-	formatter << std::setprecision(1) << std::noshowpos
-	    << gain_stats.reference_loudness() << " LUFS";
-	std::string ref_loudness = formatter.str();
-
-	formatter.str("");
-	formatter << std::setprecision(2) << std::showpos
-	    << gain_stats.track_gain() << " dB";
-	std::string track_gain = formatter.str();
-
-	formatter.str("");
-	formatter << std::setprecision(8) << std::noshowpos
-	    << gain_stats.track_peak();
-	std::string track_peak = formatter.str();
+	auto album_gain = std::format("{:+.2f}", gain_stats.album_gain());
+	auto album_peak = std::format("{:.8f}", gain_stats.album_peak());
+	auto ref_loudness = std::format("{:.1f} LUFS", gain_stats.reference_loudness());
+	auto track_gain = std::format("{:+.2f}", gain_stats.track_gain());
+	auto track_peak = std::format("{:.8f}", gain_stats.track_peak());
 
 	comment.append_comment(VorbisComment::Entry(
 	    "REPLAYGAIN_ALBUM_GAIN", album_gain.c_str()));
