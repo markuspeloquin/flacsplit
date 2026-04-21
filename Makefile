@@ -1,7 +1,6 @@
 CFLAGS += -Wall -Wextra -std=c17 -pedantic
 CXXFLAGS += -Wall -Wextra -std=c++20 -pedantic
 CPPFLAGS += -Ilibcuefile/include -D_XOPEN_SOURCE=500 -D_BSD_SOURCE -D_DEFAULT_SOURCE
-LDFLAGS += -L/usr/local/lib
 LIBS += -lFLAC -lFLAC++ -lboost_program_options -lboost_stacktrace_basic -lebur128 -licuuc -lsndfile
 
 #CFLAGS += -g -O0
@@ -68,6 +67,9 @@ sanitize.o: sanitize.cpp \
 
 transcode.o: transcode.cpp \
 	transcode.hpp
+
+compile_commands.json:
+	bear -- $(MAKE) clean all
 
 clean:
 	rm -f $(OBJS) flacsplit
