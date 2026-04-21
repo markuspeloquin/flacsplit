@@ -54,8 +54,8 @@ public:
 	File_handle() : _fp(nullptr) {}
 	File_handle(FILE *fp) : _fp(fp) {}
 
-	File_handle(File_handle &&rhs) {
-		std::swap(rhs._fp, _fp);
+	File_handle(File_handle &&rhs) : _fp(rhs._fp) {
+		rhs._fp = nullptr;
 	}
 	File_handle(const File_handle &) = delete;
 
