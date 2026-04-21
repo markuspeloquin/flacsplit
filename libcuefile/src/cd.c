@@ -173,7 +173,7 @@ int cd_get_ntrack (Cd *cd)
 
 Track *cd_get_track (Cd *cd, int i)
 {
-	if (0 < i <= cd->ntrack)
+	if (0 < i && i <= cd->ntrack)
 		return cd->track[i - 1];
 
 	return NULL;
