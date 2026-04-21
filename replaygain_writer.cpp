@@ -6,7 +6,6 @@
 #include <sstream>
 
 #include <FLAC++/metadata.h>
-#include <boost/algorithm/string/predicate.hpp>
 
 #include "errors.hpp"
 #include "replaygain_writer.hpp"
@@ -276,7 +275,8 @@ flacsplit::delete_replaygain_tags(FLAC::Metadata::VorbisComment &comment) {
 	for (unsigned i = comment.get_num_comments(); i != 0;) {
 		i--;
 		VorbisComment::Entry entry = comment.get_comment(i);
-		if (boost::starts_with(entry.get_field_name(), "REPLAYGAIN_"))
+		std::string_view name = entry.get_field_name();
+		if (name.starts_with("REPLAYGAIN_"))
 			comment.delete_comment(i);
 	}
 }

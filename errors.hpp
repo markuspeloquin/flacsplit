@@ -74,6 +74,7 @@ typedef boost::error_info<struct tag_stacktrace, boost::stacktrace::stacktrace> 
 
 template <class E>
 E throw_traced(const E &e) {
+	// C++23 has std::stacktrace::current().
 	throw boost::enable_error_info(e) << traced(boost::stacktrace::stacktrace());
 }
 
