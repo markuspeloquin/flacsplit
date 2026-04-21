@@ -39,7 +39,7 @@
 #include "decode.hpp"
 #include "encode.hpp"
 #include "errors.hpp"
-#include "gain_analysis.hpp"
+#include "loudness.hpp"
 #include "replaygain_writer.hpp"
 #include "sanitize.hpp"
 #include "transcode.hpp"
@@ -432,8 +432,7 @@ once(const std::filesystem::path &cue_path, const struct options *options) {
 	std::vector<std::filesystem::path> out_paths;
 
 	// for replaygain analysis
-	replaygain::Sample_accum		rg_accum;
-	std::unique_ptr<replaygain::Analyzer>	rg_analyzer;
+	std::vector<replaygain::Analyzer>	rg_analyzers;
 	std::unique_ptr<double>			rg_samples;
 	double	*double_samples[] = { nullptr, nullptr };
 	int	dimens[] = { 0, 0 };
@@ -551,8 +550,7 @@ once(const std::filesystem::path &cue_path, const struct options *options) {
 				    frame.rate
 				));
 
-				rg_analyzer.reset(new replaygain::Analyzer(
-				    decoder->sample_rate()));
+				rg_analyzers.emplace_back(2, decoder->sample_rate());
 			}
 
 			int64_t remaining = track_samples - samples;
@@ -572,17 +570,15 @@ once(const std::filesystem::path &cue_path, const struct options *options) {
 				    frame.samples;
 			}
 			transform_sample_fmt(frame, double_samples);
-			rg_analyzer->add(double_samples[0], double_samples[1],
-			    frame.samples, frame.channels);
+			rg_analyzers.rbegin()->add(
+			    double_samples[0], double_samples[1], frame.samples
+			);
 
 			encoder->add_frame(frame);
 		} while (samples < track_samples);
 
-		replaygain::Sample rg_sample;
-		rg_analyzer->pop(rg_sample);
-		rg_accum += rg_sample;
-		gain_stats.get()[i].track_gain(rg_sample.adjustment());
-		gain_stats.get()[i].track_peak(rg_sample.peak());
+		gain_stats.get()[i].track_gain(rg_analyzers.rbegin()->gain());
+		gain_stats.get()[i].track_peak(rg_analyzers.rbegin()->peak());
 
 		if (!encoder->finish()) {
 			std::cerr << prog << ": finish() failed\n";
@@ -590,8 +586,8 @@ once(const std::filesystem::path &cue_path, const struct options *options) {
 		}
 	}
 
-	double album_gain = rg_accum.adjustment();
-	double album_peak = rg_accum.peak();
+	double album_gain = replaygain::Analyzer::gain_multiple(rg_analyzers);
+	double album_peak = replaygain::Analyzer::peak_multiple(rg_analyzers);
 
 	for (unsigned i = 0; i < tracks; i++) {
 		gain_stats.get()[i].album_gain(album_gain);
@@ -607,9 +603,10 @@ once(const std::filesystem::path &cue_path, const struct options *options) {
 
 		Replaygain_writer writer(outfp);
 		writer.add_replaygain(gain_stats.get()[i]);
-		if (writer.check_if_tempfile_needed())
+		if (writer.check_if_tempfile_needed()) {
 			std::cerr << prog << ": padding exhausted for "
 			    << out_paths[i] << ", using temp file\n";
+		}
 		writer.save();
 	}
 
@@ -618,15 +615,15 @@ once(const std::filesystem::path &cue_path, const struct options *options) {
 
 void
 transform_sample_fmt(const Frame &frame, double **out) {
-	int shamt = 16 - frame.bits_per_sample;
+	int shamt = -(frame.bits_per_sample - 1);
 
 	for (int c = 0; c < frame.channels; c++) {
 		const int32_t	*channel_in = frame.data[c];
 		double		*channel_out = out[c];
 		for (int s = 0; s < frame.samples; s++) {
-			// Scale to 16-bit.
+			// Scale to [-1.0, 1.0].
 			double samplef = static_cast<double>(channel_in[s]);
-			if (shamt) samplef = ldexp(samplef, shamt);
+			samplef = ldexp(samplef, shamt);
 			channel_out[s] = samplef;
 		}
 	}

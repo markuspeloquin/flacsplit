@@ -193,13 +193,11 @@ Flac_encoder::set_meta(const flacsplit::Music_info &track,
 		flacsplit::delete_replaygain_tags(_tag);
 		pad_length -= _tag.get_length();
 
-		// we then must subtract 4 from the pad_length to account for
-		// the padding header
-		// it is possible that the written gain values are as much as
-		// four bytes short, requiring anywhere from 0--4 bytes
-		// padding; the minimum size of padding is 4 bytes (the
-		// METADATA_BLOCK_HEADER length), so we then add 4 bytes
-		//pad_length -= 4; pad_length += 4;
+		// Padding will be used when adding the replaygain tags later.
+		// This will subtract from the padding size. Either we need to
+		// fully consume the padding and header exactly, or we need to
+		// have enough room for a padding header and nothing else. So
+		// don't try to adjust the value to account for the header.
 		if (!_padding)
 			_padding.reset(new FLAC::Metadata::Padding);
 		_padding->set_length(pad_length);

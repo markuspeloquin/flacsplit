@@ -3,6 +3,8 @@
 
 #include <memory>
 
+#include "loudness.hpp"
+
 namespace FLAC {
 	namespace Metadata {
 		class VorbisComment;
@@ -32,7 +34,7 @@ public:
 	}
 
 	double reference_loudness() const {
-		return 89.0;
+		return replaygain::EBUR128_REFERENCE;
 	}
 
 	double track_gain() const {

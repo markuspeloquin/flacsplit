@@ -245,7 +245,7 @@ flacsplit::append_replaygain_tags(FLAC::Metadata::VorbisComment &comment,
 
 	formatter.str("");
 	formatter << std::setprecision(1) << std::noshowpos
-	    << gain_stats.reference_loudness() << " dB";
+	    << gain_stats.reference_loudness() << " LUFS";
 	std::string ref_loudness = formatter.str();
 
 	formatter.str("");

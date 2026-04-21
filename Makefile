@@ -2,7 +2,7 @@ CFLAGS += -Wall -Wextra -std=c17 -pedantic
 CXXFLAGS += -Wall -Wextra -std=c++20 -pedantic
 CPPFLAGS += -Ilibcuefile/include -D_XOPEN_SOURCE=500 -D_BSD_SOURCE -D_DEFAULT_SOURCE
 LDFLAGS += -L/usr/local/lib
-LIBS += -lFLAC -lFLAC++ -lboost_program_options -lboost_stacktrace_basic -licuuc -lsndfile
+LIBS += -lFLAC -lFLAC++ -lboost_program_options -lboost_stacktrace_basic -lebur128 -licuuc -lsndfile
 
 #CFLAGS += -g -O0
 #CXXFLAGS += -g -O0
@@ -11,7 +11,7 @@ OBJS = \
 	decode.o \
 	encode.o \
 	errors.o \
-	gain_analysis.o \
+	loudness.o \
 	main.o \
 	replaygain_writer.o \
 	sanitize.o \
@@ -45,22 +45,22 @@ encode.o: encode.cpp \
 errors.o: errors.cpp \
 	errors.hpp
 
-gain_analysis.o: \
-	gain_analysis.c \
-	gain_analysis.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+loudness.o: \
+	loudness.cpp \
+	errors.hpp \
+	loudness.hpp
 
 main.o: main.cpp \
 	decode.hpp \
 	encode.hpp \
 	errors.hpp \
-	gain_analysis.h \
-	gain_analysis.hpp \
+	loudness.hpp \
 	replaygain_writer.hpp \
 	sanitize.hpp \
 	transcode.hpp
 
 replaygain_writer.o: replaygain_writer.cpp \
+	loudness.hpp \
 	replaygain_writer.hpp
 
 sanitize.o: sanitize.cpp \
