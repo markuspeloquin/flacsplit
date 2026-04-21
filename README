@@ -1,4 +1,4 @@
-Flacsplit splits FLAC and WAVE files based on a cuesheet.
+Flacsplit splits FLAC and WAV files based on a cuesheet.
 
 Features:
  - Add a 'REM OFFSET <N>' line to a cuesheet to add <N> to all track numbers
@@ -12,8 +12,9 @@ Features:
      sanitizes to just ' '.  I have no better solution than hard-coding that
      case.
  - FLAC files always encoded with --best.
- - Writes Replaygain. Does not produce consistent results for multi-disk
-   albums, but it's close enough.
+ - Writes EBU R 128 corrections in Replaygain tags.
+   - Note that multi-disk albums will be aggregated separately. Use `rsgain`
+     to correct these.
 
-Build dependencies: cmake, flex, yacc
-Runtime dependencies: boost, flac (with C++ bindings), icu, sndfile
+Build dependencies: cmake, flex, byacc
+Runtime dependencies: boost, flac (with C++ bindings), icu, sndfile, ebur128
