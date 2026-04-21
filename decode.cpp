@@ -74,7 +74,7 @@ protected:
 private:
 	FILE				*_fp;
 	const FLAC__Frame		*_last_frame;
-	std::unique_ptr<const FLAC__int32 *>
+	std::unique_ptr<const FLAC__int32 *[]>
 					_last_buffer;
 	const char			*_last_status;
 	bool				_frame_retrieved;
@@ -122,9 +122,9 @@ public:
 private:
 	static void close_quiet(SNDFILE *file) noexcept;
 
-	std::unique_ptr<int32_t>	_samples;
-	std::unique_ptr<int32_t>	_transp;
-	std::unique_ptr<int32_t *>	_transp_ptrs;
+	std::unique_ptr<int32_t[]>	_samples;
+	std::unique_ptr<int32_t[]>	_transp;
+	std::unique_ptr<int32_t *[]>	_transp_ptrs;
 	SNDFILE		*_file;
 	SF_INFO		_info;
 	sf_count_t	_samples_len;

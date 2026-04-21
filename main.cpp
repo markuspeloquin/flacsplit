@@ -404,11 +404,11 @@ once(const std::filesystem::path &cue_path, const struct options *options) {
 
 	// for replaygain analysis
 	std::vector<replaygain::Analyzer>	rg_analyzers;
-	std::unique_ptr<double>			rg_samples;
+	std::unique_ptr<double[]>		rg_samples;
 	double	*double_samples[] = { nullptr, nullptr };
 	int	dimens[] = { 0, 0 };
 
-	std::unique_ptr<Replaygain_stats> gain_stats(
+	std::unique_ptr<Replaygain_stats[]> gain_stats(
 	    new Replaygain_stats[offsets.size()]);
 
 	for (size_t i = 0; i < offsets.size(); i++) {
