@@ -549,8 +549,8 @@ once(const std::filesystem::path &cue_path, const struct options *options) {
 			encoder->add_frame(frame);
 		} while (samples < track_samples);
 
-		gain_stats.get()[i].track_gain(rg_analyzers.rbegin()->gain());
-		gain_stats.get()[i].track_peak(rg_analyzers.rbegin()->peak());
+		gain_stats.get()[i].track_gain = rg_analyzers.rbegin()->gain();
+		gain_stats.get()[i].track_peak = rg_analyzers.rbegin()->peak();
 
 		if (!encoder->finish()) {
 			std::cerr << prog << ": finish() failed\n";
@@ -562,8 +562,8 @@ once(const std::filesystem::path &cue_path, const struct options *options) {
 	double album_peak = replaygain::Analyzer::peak_multiple(rg_analyzers);
 
 	for (unsigned i = 0; i < tracks; i++) {
-		gain_stats.get()[i].album_gain(album_gain);
-		gain_stats.get()[i].album_peak(album_peak);
+		gain_stats.get()[i].album_gain = album_gain;
+		gain_stats.get()[i].album_peak = album_peak;
 
 		// I hate these stupid mode strings; "r+b" = O_RDWR, binary
 		File_handle outfp(fopen(out_paths[i].c_str(), "r+b"));

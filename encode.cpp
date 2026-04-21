@@ -161,10 +161,10 @@ Flac_encoder::set_meta(const flacsplit::Music_info &track,
 		// use -10 for gain since this gives the field's maximum
 		// length
 		flacsplit::Replaygain_stats basic_gain_stats;
-		basic_gain_stats.album_gain(-10.0);
-		basic_gain_stats.album_peak(0.0);
-		basic_gain_stats.track_gain(-10.0);
-		basic_gain_stats.track_peak(0.0);
+		basic_gain_stats.album_gain = -10.0;
+		basic_gain_stats.album_peak = 0.0;
+		basic_gain_stats.track_gain = -10.0;
+		basic_gain_stats.track_peak = 0.0;
 
 		flacsplit::append_replaygain_tags(_tag, basic_gain_stats);
 		unsigned pad_length = _tag.get_length();

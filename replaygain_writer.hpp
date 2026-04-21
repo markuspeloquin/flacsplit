@@ -15,49 +15,15 @@ namespace flacsplit {
 
 class Replaygain_writer_impl;
 
-class Replaygain_stats {
-public:
-	double album_gain() const {
-		return _album_gain;
-	}
-
-	void album_gain(double album_gain) {
-		_album_gain = album_gain;
-	}
-
-	double album_peak() const {
-		return _album_peak;
-	}
-
-	void album_peak(double album_peak) {
-		_album_peak = album_peak;
-	}
-
+struct Replaygain_stats {
 	double reference_loudness() const {
 		return replaygain::EBUR128_REFERENCE;
 	}
 
-	double track_gain() const {
-		return _track_gain;
-	}
-
-	void track_gain(double track_gain) {
-		_track_gain = track_gain;
-	}
-
-	double track_peak() const {
-		return _track_peak;
-	}
-
-	void track_peak(double track_peak) {
-		_track_peak = track_peak;
-	}
-
-private:
-	double _album_gain;
-	double _album_peak;
-	double _track_gain;
-	double _track_peak;
+	double album_gain;
+	double album_peak;
+	double track_gain;
+	double track_peak;
 };
 
 class Replaygain_writer {
@@ -66,7 +32,7 @@ public:
 
 	~Replaygain_writer();
 
-	void add_replaygain(const flacsplit::Replaygain_stats &);
+	void add_replaygain(flacsplit::Replaygain_stats);
 
 	bool check_if_tempfile_needed() const;
 
@@ -77,7 +43,7 @@ private:
 };
 
 void	append_replaygain_tags(FLAC::Metadata::VorbisComment &comment,
-	    const Replaygain_stats &gain_stats);
+	    Replaygain_stats);
 
 void	delete_replaygain_tags(FLAC::Metadata::VorbisComment &comment);
 

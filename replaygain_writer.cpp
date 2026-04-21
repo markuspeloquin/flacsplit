@@ -173,7 +173,7 @@ flacsplit::Replaygain_writer::~Replaygain_writer() {}
 
 void
 flacsplit::Replaygain_writer::add_replaygain(
-    const flacsplit::Replaygain_stats &gain_stats) {
+    flacsplit::Replaygain_stats gain_stats) {
 	_impl->add_replaygain(gain_stats);
 }
 
@@ -224,14 +224,14 @@ flacsplit::Replaygain_writer_impl::save() {
 
 void
 flacsplit::append_replaygain_tags(FLAC::Metadata::VorbisComment &comment,
-    const flacsplit::Replaygain_stats &gain_stats) {
+    flacsplit::Replaygain_stats gain_stats) {
 	using FLAC::Metadata::VorbisComment;
 
-	auto album_gain = std::format("{:+.2f}", gain_stats.album_gain());
-	auto album_peak = std::format("{:.8f}", gain_stats.album_peak());
+	auto album_gain = std::format("{:+.2f}", gain_stats.album_gain);
+	auto album_peak = std::format("{:.8f}", gain_stats.album_peak);
 	auto ref_loudness = std::format("{:.1f} LUFS", gain_stats.reference_loudness());
-	auto track_gain = std::format("{:+.2f}", gain_stats.track_gain());
-	auto track_peak = std::format("{:.8f}", gain_stats.track_peak());
+	auto track_gain = std::format("{:+.2f}", gain_stats.track_gain);
+	auto track_peak = std::format("{:.8f}", gain_stats.track_peak);
 
 	comment.append_comment(VorbisComment::Entry(
 	    "REPLAYGAIN_ALBUM_GAIN", album_gain.c_str()));
