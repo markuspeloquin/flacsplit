@@ -1,16 +1,19 @@
-#include <FLAC/format.h>
-#if FLACPP_API_VERSION_CURRENT <= 8
-#	include <cerrno>
-#endif
 #include <cstdint>
 #include <memory>
 #include <sstream>
-#include <stdexcept>
 
 #include <FLAC++/encoder.h>
+#include <FLAC/format.h>
 
 #include "encode.hpp"
+#include "errors.hpp"
 #include "replaygain_writer.hpp"
+
+// libFLAC 1.3.0 required, from 2013-05-27.
+#if FLACPP_API_VERSION_CURRENT <= 8
+#	error FLAC++ API 9 is required.
+#endif
+
 
 namespace {
 
@@ -92,16 +95,8 @@ Flac_encoder::Flac_encoder(FILE *fp, const flacsplit::Music_info &track,
 
 	if (total_samples) {
 		_seek_table.reset(new FLAC::Metadata::SeekTable);
-#if FLACPP_API_VERSION_CURRENT <= 8
-		if (!FLAC__metadata_object_seektable_template_append_spaced_points_by_samples(
-		    cast_metadata(*_seek_table), sample_rate * 10,
-		    total_samples)) {
-			throw_traced(flacsplit::Unix_error(ENOMEM));
-		}
-#else
 		_seek_table->template_append_spaced_points_by_samples(
 		    sample_rate * 10, total_samples);
-#endif
 	}
 	set_meta(track);
 }
@@ -199,8 +194,6 @@ Flac_encoder::set_meta(const flacsplit::Music_info &track,
 		if (add_replaygain_padding)
 			meta[metalen++] = cast_metadata(*_padding);
 
-		// using the C-style function to avoid stupid libFLAC++ bug
-		// TODO switch to c++-style, that bug is OLD
 		set_metadata(meta, metalen);
 	}
 }

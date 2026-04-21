@@ -1,13 +1,12 @@
-#include <cerrno>
 #include <cstdio>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <memory>
 #include <sstream>
-#include <boost/algorithm/string/predicate.hpp>
 
 #include <FLAC++/metadata.h>
+#include <boost/algorithm/string/predicate.hpp>
 
 #include "errors.hpp"
 #include "replaygain_writer.hpp"

@@ -3,7 +3,6 @@
 
 #include <cstdio>
 #include <memory>
-#include <string>
 
 #include "errors.hpp"
 #include "transcode.hpp"

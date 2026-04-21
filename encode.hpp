@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <memory>
 
-#include "errors.hpp"
 #include "transcode.hpp"
 
 namespace flacsplit {
