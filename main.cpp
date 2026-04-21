@@ -369,7 +369,9 @@ once(const std::filesystem::path &cue_path, const struct options *options) {
 			// disks
 			track_info.push_back(Music_info::create_hidden(
 			    album_info));
-			offsets.push_back(track_offset{0, pregap, 0, 0});
+			offsets.push_back(track_offset{
+			    .begin=0, .end=pregap, .pregap=0, .track_number=0,
+			});
 			begin += pregap;
 			pregap = 0;
 		}
@@ -378,7 +380,9 @@ once(const std::filesystem::path &cue_path, const struct options *options) {
 		    track_get_cdtext(track), album_info,
 		    offset + i + 1));
 
-		offsets.push_back(track_offset{begin, end, pregap, i+1});
+		offsets.push_back(track_offset{
+		    .begin=begin, .end=end, .pregap=pregap, .track_number=i+1
+		});
 	}
 
 	// shift pregaps into preceding tracks
@@ -682,7 +686,12 @@ main(int argc, char **argv) {
 	bool switch_index = !var_map["switch_index"].empty();
 	bool use_flac = !var_map["use_flac"].empty();
 
-	options opts = {out_dir, hidden_track, switch_index, use_flac};
+	options opts = {
+		.out_dir=out_dir,
+		.hidden_track=hidden_track,
+		.switch_index=switch_index,
+		.use_flac=use_flac,
+	};
 
 	for (auto &cuefile : cuefiles) {
 		try {
