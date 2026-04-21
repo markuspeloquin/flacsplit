@@ -216,6 +216,7 @@ Flac_encoder::set_meta(const flacsplit::Music_info &track,
 			meta[metalen++] = cast_metadata(*_padding);
 
 		// using the C-style function to avoid stupid libFLAC++ bug
+		// TODO switch to c++-style, that bug is OLD
 		set_metadata(meta, metalen);
 	}
 }
