@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include <boost/algorithm/string/trim.hpp>
 #include <unicode/utf8.h>
 
 #include "errors.hpp"
@@ -77,10 +78,6 @@ flacsplit::sanitize(const std::string &str) {
 	int32_t		length = str.size();
 	int32_t		i = 0;
 
-	// Sigur Ros exception
-	if (str == "( )")
-		return "Untitled";
-
 	while (i < length) {
 		int32_t	c;
 		U8_NEXT(s, i, length, c);
@@ -114,6 +111,12 @@ flacsplit::sanitize(const std::string &str) {
 		if (i != res.size() - 1 && !isupper(res[i+1]))
 			res[i] = tolower(res[i]);
 	}
+
+	boost::trim(res);
+
+	// Sigur Ros exception for '( )'.
+	if (str.empty())
+		return "Untitled";
 
 	return res;
 }
